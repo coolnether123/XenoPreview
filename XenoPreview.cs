@@ -14,7 +14,7 @@ namespace XenoPreview
 
         static XenoPreview()
         {
-            Log.Message("[XenoPreview] MOD LOAD: Static constructor called. Version 1.0.0");
+            //Log.Message("[XenoPreview] MOD LOAD: Static constructor called. Version 1.0.0");
             try
             {
                 var harmony = new Harmony("coolnether123.XenoPreview");
@@ -27,7 +27,7 @@ namespace XenoPreview
                 {
                     harmony.Patch(originalMethod,
                         postfix: new HarmonyMethod(postfixMethod));
-                    Log.Message("[XenoPreview] Successfully patched GeneCreationDialogBase.DoWindowContents");
+                    //Log.Message("[XenoPreview] Successfully patched GeneCreationDialogBase.DoWindowContents");
                 }
                 else
                 {
@@ -42,7 +42,7 @@ namespace XenoPreview
                 {
                     harmony.Patch(closeMethod,
                         postfix: new HarmonyMethod(closePostfix));
-                    Log.Message("[XenoPreview] Successfully patched Window.Close");
+                    //Log.Message("[XenoPreview] Successfully patched Window.Close");
                 }
                 else
                 {
@@ -57,10 +57,10 @@ namespace XenoPreview
                 {
                     harmony.Patch(windowAddMethod,
                         postfix: new HarmonyMethod(windowAddPostfix));
-                    Log.Message("[XenoPreview] Successfully patched WindowStack.Add");
+                    //Log.Message("[XenoPreview] Successfully patched WindowStack.Add");
                 }
 
-                Log.Message("[XenoPreview] MOD LOAD: Harmony patches applied successfully.");
+                //Log.Message("[XenoPreview] MOD LOAD: Harmony patches applied successfully.");
             }
             catch (Exception ex)
             {
@@ -121,7 +121,7 @@ namespace XenoPreview
                 {
                     XenoPreview.PreviewWindowInstance.Close(false);
                     XenoPreview.PreviewWindowInstance = null;
-                    Log.Message("[XenoPreview] Preview window closed with main dialog.");
+                    //Log.Message("[XenoPreview] Preview window closed with main dialog.");
                 }
             }
             catch (Exception ex)
@@ -163,7 +163,7 @@ namespace XenoPreview
                 string windowTitle = window.GetType().Name;
                 if (windowTitle.Contains("Gene") || windowTitle.Contains("Xeno"))
                 {
-                    Log.Message($"[XenoPreview] Found potential gene-related window: {windowTitle}");
+                    //Log.Message($"[XenoPreview] Found potential gene-related window: {windowTitle}");
                 }
             }
             catch (Exception ex)

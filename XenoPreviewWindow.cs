@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using HarmonyLib;
 using RimWorld;
@@ -18,6 +19,9 @@ namespace XenoPreview
         // Independent locking per‑gender
         private bool femaleLocked = false;
         private bool maleLocked = false;
+
+        private Color femaleNaturalHairColor;
+        private Color maleNaturalHairColor;
 
         private int lastGeneCount = -1;
         private bool needsPawnUpdate = true;
@@ -304,9 +308,9 @@ namespace XenoPreview
             try
             {
                 var req = new PawnGenerationRequest(
-                    kind: PawnKindDefOf.Colonist,
-                    faction: Faction.OfPlayer,
-                    context: PawnGenerationContext.NonPlayer,
+                    PawnKindDefOf.Colonist,
+                    Faction.OfPlayer,
+                    PawnGenerationContext.NonPlayer,
                     fixedGender: gender,
                     forceGenerateNewPawn: true,
                     allowDead: false,
@@ -331,9 +335,16 @@ namespace XenoPreview
                     forcedCustomXenotype: xeno,
                     forceNoIdeo: true,
                     forceNoBackstory: true,
-                    forbidAnyTitle: true
-                );
+                    forbidAnyTitle: true);
+
                 var p = PawnGenerator.GeneratePawn(req);
+
+                // Remember this pawn’s original hair colour
+                if (gender == Gender.Female)
+                    femaleNaturalHairColor = p.story.HairColor;
+                else
+                    maleNaturalHairColor = p.story.HairColor;
+
                 p.needs?.AllNeeds?.Clear();
                 if (p.mindState != null) p.mindState.Active = false;
                 PortraitsCache.SetDirty(p);
@@ -341,27 +352,37 @@ namespace XenoPreview
             }
             catch (Exception ex)
             {
-                Log.Error($"[XenoPreview] Pawn generation failed: {ex}");
+                Log.Error("[XenoPreview] Pawn generation failed: " + ex);
                 return null;
             }
         }
 
-        private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> genes)
+        // === 3. UpdatePreviewPawnGenes: keep genes in sync and restore natural hair colour ===
+        private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> selectedGenes)
         {
-            if (pawn == null || genes == null) return;
-            try
+            if (pawn == null || selectedGenes == null) return;
+
+            // A. Remove genes no longer selected
+            var toRemove = pawn.genes.GenesListForReading.Where(g => !selectedGenes.Contains(g.def)).ToList();
+            foreach (var g in toRemove)
+                pawn.genes.RemoveGene(g);
+
+            // B. Add missing selected genes
+            foreach (var def in selectedGenes)
+                if (!pawn.genes.GenesListForReading.Any(g => g.def == def))
+                    pawn.genes.AddGene(def, true);
+
+            // C. If there is **no** hair‑colour gene active, revert to natural colour
+            bool hairGenePresent = selectedGenes.Any(def => def.hairColorOverride.HasValue);
+            if (!hairGenePresent)
             {
-                pawn.genes?.GenesListForReading?.Clear();
-                foreach (var g in genes)
-                    pawn.genes?.AddGene(g, true);
-                PortraitsCache.SetDirty(pawn);
+                pawn.story.HairColor = pawn.gender == Gender.Female ? femaleNaturalHairColor : maleNaturalHairColor;
             }
-            catch (Exception ex)
-            {
-                Log.Error($"[XenoPreview] Gene update failed: {ex}");
-                needsPawnUpdate = true;
-            }
+
+            PortraitsCache.SetDirty(pawn);
         }
+
+
 
         private void DestroyPawn(ref Pawn p)
         {

@@ -1,10 +1,11 @@
-﻿using HarmonyLib;
+﻿using HarmonyLib; // Assuming you are using Harmony for some parts of your mod, as per previous discussions.
 using RimWorld;
+using RimWorld.Planet; // Needed for MapParent, WorldGenerator, etc.
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-using Verse;
+using System.Linq; // For LINQ queries like .Where(), .ToList(), .Any()
+using UnityEngine; // For Rect, Vector2, Mathf, GUI, Color
+using Verse; // Core RimWorld types like Window, Pawn, Log, Find, Current, DefDatabase, Widgets, Text, Rand
 
 namespace XenoPreview
 {
@@ -13,6 +14,9 @@ namespace XenoPreview
         #region Fields and constants
         private Dialog_CreateXenotype xenotypeDialog;
         private Dialog_CreateXenogerm xenogermDialog;
+
+        // NEW: track whether we spun up a dummy world for this window instance.
+        private bool ownsDummyWorld;
 
         private Pawn femalePawn;
         private Pawn malePawn;
@@ -26,7 +30,7 @@ namespace XenoPreview
         private bool needsPawnUpdate = true;
 
         private int updateTicks;
-        private const int UPDATE_INTERVAL = 15;
+        private const int UPDATE_INTERVAL = 15; // Original was 15, previous response changed to 10. Reverted to 15.
 
         private static readonly Vector2 WindowSize = new Vector2(280f, 330f);
         #endregion
@@ -37,14 +41,22 @@ namespace XenoPreview
         public XenoPreviewWindow() : base()
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
-            absorbInputAroundWindow = false;
-            draggable = false;
+            absorbInputAroundWindow = false; // Original code had this as 'false'
+            draggable = false;               // Original code had this as 'false'
             resizeable = false;
             drawShadow = true;
-            forcePause = preventCameraMotion = false;
+            forcePause = preventCameraMotion = false; // Original code had forcePause as 'false'
             doCloseX = false;
             layer = WindowLayer.Super;
             soundAppear = soundClose = null;
+
+            // Optional: If you had a specific title, add it here for clarity in debugging.
+            // optionalTitle = "Xenotype Preview"; 
+
+            // Your original code might have had UpdatePosition() here or elsewhere for initial placement.
+            // UpdatePosition() will be called when SetDialog/SetXenogermDialog is called.
+
+            // Log.Message("[XenoPreview] Window initialized."); // Your specific log message if needed.
         }
         #endregion
 
@@ -95,6 +107,12 @@ namespace XenoPreview
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
+            // --- NEW: Ensure a dummy world and game environment are set up if none exists. ---
+            // This is called every frame, but DummyWorldManager.EnsureDummyWorld() is idempotent.
+            if (!ownsDummyWorld)
+                ownsDummyWorld = DummyWorldManager.EnsureDummyWorld();
+
+            // --- Original auto-close logic if associated dialogs are gone ---
             if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
              && (xenogermDialog == null || !xenogermDialog.IsOpen))
             {
@@ -102,7 +120,9 @@ namespace XenoPreview
                 return;
             }
 
+            // --- Detect gene changes and trigger pawn updates ---
             int count;
+            // TryGetCurrentGenes() needs to be correctly implemented to retrieve genes from dialogs.
             var currentGenes = TryGetCurrentGenes(out count);
 
             if (count != lastGeneCount)
@@ -120,12 +140,14 @@ namespace XenoPreview
                 lastGeneCount = count;
             }
 
+            // --- Regenerate or refresh pawns if needed ---
             if (needsPawnUpdate)
             {
                 GenerateOrRefreshPawns(currentGenes);
                 needsPawnUpdate = false;
             }
 
+            // --- Draw the UI layout including pawn portraits ---
             DrawLayout(inRect, currentGenes);
         }
 
@@ -133,6 +155,7 @@ namespace XenoPreview
         {
             base.WindowUpdate();
 
+            // Auto-close if dialog went away
             if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
              && (xenogermDialog == null || !xenogermDialog.IsOpen)
              && IsOpen)
@@ -141,6 +164,7 @@ namespace XenoPreview
                 return;
             }
 
+            // Throttle gene-watch checks to avoid excessive CPU usage
             if (++updateTicks >= UPDATE_INTERVAL)
             {
                 updateTicks = 0;
@@ -153,11 +177,17 @@ namespace XenoPreview
 
         public override void PreClose()
         {
-            base.PreClose();
-            femaleLocked = maleLocked = false;
-            Cleanup();
+            base.PreClose(); // Call base method first
+
+            // --- NEW: Tear down our dummy world if *this* window instance created it ---
+            if (ownsDummyWorld)
+                DummyWorldManager.Cleanup();
+
+            // Restore original pawn cleanup logic
+            femaleLocked = maleLocked = false; // Unlock pawns
+            Cleanup(); // Call the pawn-specific cleanup method in XenoPreviewWindow
             if (XenoPreview.PreviewWindowInstance == this)
-                XenoPreview.PreviewWindowInstance = null;
+                XenoPreview.PreviewWindowInstance = null; // Clear static instance if this was it
         }
         #endregion
 
@@ -236,6 +266,8 @@ namespace XenoPreview
         #endregion
 
         #region Pawn generation / updates
+        // This method retrieves the currently selected genes from the active gene dialogs.
+        // It uses Harmony's Traverse to access private fields of Dialog_CreateXenotype/Xenogerm.
         private List<GeneDef> TryGetCurrentGenes(out int count)
         {
             count = 0;
@@ -262,68 +294,83 @@ namespace XenoPreview
             return genes;
         }
 
+        // This method generates or refreshes the preview pawns based on the active genes.
         private void GenerateOrRefreshPawns(List<GeneDef> genes, bool forceNewUnlocked = false)
         {
             if (genes == null || genes.Count == 0)
             {
-                Cleanup();
+                Cleanup(); // Cleanup pawn references
                 return;
             }
 
+            // Create a temporary CustomXenotype to pass to PawnGenerationRequest.
             var tmpXeno = new CustomXenotype
             {
                 genes = new List<GeneDef>(genes),
                 name = "TempPreviewXenotype"
             };
 
+            // Generate or update female pawn.
             if (!femaleLocked || forceNewUnlocked)
             {
-                if (!femaleLocked) DestroyPawn(ref femalePawn);
+                if (!femaleLocked) DestroyPawn(ref femalePawn); // Destroy existing pawn if not locked
                 femalePawn = GeneratePawn(Gender.Female, tmpXeno);
             }
             else
             {
+                // If locked, just update genes on the existing pawn.
                 UpdatePreviewPawnGenes(femalePawn, genes);
             }
 
+            // Generate or update male pawn.
             if (!maleLocked || forceNewUnlocked)
             {
-                if (!maleLocked) DestroyPawn(ref malePawn);
+                if (!maleLocked) DestroyPawn(ref malePawn); // Destroy existing pawn if not locked
                 malePawn = GeneratePawn(Gender.Male, tmpXeno);
             }
             else
             {
+                // If locked, just update genes on the existing pawn.
                 UpdatePreviewPawnGenes(malePawn, genes);
             }
         }
 
+        // This method generates a single pawn with the specified gender and xenotype.
         private Pawn GeneratePawn(Gender gender, CustomXenotype xeno)
         {
             try
             {
+                // Create a PawnGenerationRequest. Crucially, Faction.OfPlayer must exist here.
                 var request = new PawnGenerationRequest(
-                    PawnKindDefOf.Colonist,
+                    PawnKindDefOf.Colonist, // Using Colonist pawn kind, can be adjusted.
+                    Faction.OfPlayer,       // Requires Faction.OfPlayer to be initialized by DummyWorldManager.
+                    PawnGenerationContext.All, // Context for pawn generation (usually World or Map for title screen)
                     forceGenerateNewPawn: true,
                     canGeneratePawnRelations: false,
                     colonistRelationChanceFactor: 0f,
                     fixedGender: gender,
-                    fixedBiologicalAge: 25f,
+                    fixedBiologicalAge: 25f, // Fixed age for consistent preview
                     fixedChronologicalAge: 25f,
-                    forcedCustomXenotype: xeno,
-                    forceNoIdeo: true,
-                    forceNoBackstory: true,
-                    forbidAnyTitle: true
+                    forcedCustomXenotype: xeno, // Apply the custom xenotype
+                    forceNoIdeo: true,          // No ideology for preview pawns
+                    forceNoBackstory: true,     // No backstory for preview pawns
+                    forbidAnyTitle: true        // No titles
                 );
 
                 var p = PawnGenerator.GeneratePawn(request);
-                if (gender == Gender.Female)
-                    femaleNaturalHairColor = p.story.HairColor;
-                else
-                    maleNaturalHairColor = p.story.HairColor;
 
-                p.needs?.AllNeeds.Clear();
-                if (p.mindState != null) p.mindState.Active = false;
-                PortraitsCache.SetDirty(p);
+                // Store natural hair color if no gene overrides it.
+                if (p.story != null) // Ensure story is not null
+                {
+                    if (gender == Gender.Female)
+                        femaleNaturalHairColor = p.story.HairColor;
+                    else
+                        maleNaturalHairColor = p.story.HairColor;
+                }
+
+                p.needs?.AllNeeds.Clear(); // Clear needs for a static preview pawn.
+                if (p.mindState != null) p.mindState.Active = false; // Deactivate mind state.
+                PortraitsCache.SetDirty(p); // Mark portrait as dirty to re-render.
                 return p;
             }
             catch (Exception ex)
@@ -333,39 +380,44 @@ namespace XenoPreview
             }
         }
 
+        // This method updates an existing pawn's genes without regenerating the whole pawn.
         private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> selectedGenes)
         {
-            if (pawn == null || selectedGenes == null) return;
+            if (pawn == null || selectedGenes == null || pawn.genes == null) return;
 
-            // remove deselected
+            // Remove genes that are no longer selected.
             var toRemove = pawn.genes.GenesListForReading
                                   .Where(g => !selectedGenes.Contains(g.def))
                                   .ToList();
             foreach (var g in toRemove)
                 pawn.genes.RemoveGene(g);
 
-            // add new
+            // Add new genes that are now selected.
             foreach (var def in selectedGenes)
                 if (!pawn.genes.GenesListForReading.Any(g => g.def == def))
                     pawn.genes.AddGene(def, true);
 
-            // restore hair color if needed
+            // Restore hair color if no gene now overrides it.
             bool hairGene = selectedGenes.Any(d => d.hairColorOverride.HasValue);
-            if (!hairGene)
+            if (!hairGene && pawn.story != null) // Ensure story is not null before accessing
+            {
                 pawn.story.HairColor = pawn.gender == Gender.Female
                     ? femaleNaturalHairColor
                     : maleNaturalHairColor;
+            }
 
-            PortraitsCache.SetDirty(pawn);
+            PortraitsCache.SetDirty(pawn); // Mark portrait as dirty to reflect gene changes.
         }
 
+        // Helper to safely destroy a pawn.
         private void DestroyPawn(ref Pawn p)
         {
             if (p != null && !p.Destroyed)
-                p.Destroy(DestroyMode.Vanish);
-            p = null;
+                p.Destroy(DestroyMode.Vanish); // Destroy the pawn.
+            p = null; // Nullify the reference.
         }
 
+        // General cleanup for preview pawns.
         private void Cleanup()
         {
             if (!femaleLocked) DestroyPawn(ref femalePawn);

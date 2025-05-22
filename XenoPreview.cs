@@ -159,12 +159,6 @@ namespace XenoPreview
                     return;
                 }
 
-                // Log gene-related windows for debugging
-                string windowTitle = window.GetType().Name;
-                if (windowTitle.Contains("Gene") || windowTitle.Contains("Xeno"))
-                {
-                    //Log.Message($"[XenoPreview] Found potential gene-related window: {windowTitle}");
-                }
             }
             catch (Exception ex)
             {

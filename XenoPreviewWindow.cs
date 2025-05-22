@@ -1,8 +1,8 @@
-﻿using System;
-using System.Linq;
-using System.Collections.Generic;
-using HarmonyLib;
+﻿using HarmonyLib;
 using RimWorld;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Verse;
 
@@ -10,15 +10,14 @@ namespace XenoPreview
 {
     public class XenoPreviewWindow : Window
     {
+        #region Fields and constants
         private Dialog_CreateXenotype xenotypeDialog;
         private Dialog_CreateXenogerm xenogermDialog;
 
         private Pawn femalePawn;
         private Pawn malePawn;
-
-        // Independent locking per‑gender
-        private bool femaleLocked = false;
-        private bool maleLocked = false;
+        private bool femaleLocked;
+        private bool maleLocked;
 
         private Color femaleNaturalHairColor;
         private Color maleNaturalHairColor;
@@ -26,14 +25,16 @@ namespace XenoPreview
         private int lastGeneCount = -1;
         private bool needsPawnUpdate = true;
 
-        // Periodic refresh
-        private int updateTicks = 0;
+        private int updateTicks;
         private const int UPDATE_INTERVAL = 15;
 
         private static readonly Vector2 WindowSize = new Vector2(280f, 330f);
+        #endregion
+
+        #region Constructors
         public override Vector2 InitialSize => WindowSize;
 
-        public XenoPreviewWindow()
+        public XenoPreviewWindow() : base()
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
@@ -45,6 +46,7 @@ namespace XenoPreview
             layer = WindowLayer.Super;
             soundAppear = soundClose = null;
         }
+        #endregion
 
         #region Dialog plumbing
         public void SetDialog(Dialog_CreateXenotype dlg)
@@ -53,12 +55,14 @@ namespace XenoPreview
             xenogermDialog = null;
             UpdatePosition();
         }
+
         public void SetXenogermDialog(Dialog_CreateXenogerm dlg)
         {
             xenogermDialog = dlg;
             xenotypeDialog = null;
             UpdatePosition();
         }
+
         public void UpdatePosition()
         {
             float x = 0f, y = 0f;
@@ -77,66 +81,73 @@ namespace XenoPreview
                 ok = true;
             }
 
-            if (ok)
-            {
-                x = Mathf.Min(x, UI.screenWidth - WindowSize.x);
-                y = Mathf.Clamp(y, 0f, UI.screenHeight - WindowSize.y);
-                windowRect = new Rect(x, y, WindowSize.x, WindowSize.y);
-            }
+            if (!ok) return;
+
+            windowRect = new Rect(
+                Mathf.Min(x, UI.screenWidth - WindowSize.x),
+                Mathf.Clamp(y, 0f, UI.screenHeight - WindowSize.y),
+                WindowSize.x,
+                WindowSize.y
+            );
         }
         #endregion
 
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
-            // Auto‑close if parent dialogs vanished
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen) &&
-                (xenogermDialog == null || !xenogermDialog.IsOpen))
+            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
+             && (xenogermDialog == null || !xenogermDialog.IsOpen))
             {
-                Close(false); return;
+                Close(false);
+                return;
             }
 
-            List<GeneDef> selectedGenes = TryGetCurrentGenes(out int currentGeneCount);
+            int count;
+            var currentGenes = TryGetCurrentGenes(out count);
 
-            // Detect gene‑list changes
-            if (currentGeneCount != lastGeneCount)
+            if (count != lastGeneCount)
             {
-                if (femaleLocked && femalePawn != null) UpdatePreviewPawnGenes(femalePawn, selectedGenes);
-                else needsPawnUpdate = true;
+                if (femaleLocked && femalePawn != null)
+                    UpdatePreviewPawnGenes(femalePawn, currentGenes);
+                else
+                    needsPawnUpdate = true;
 
-                if (maleLocked && malePawn != null) UpdatePreviewPawnGenes(malePawn, selectedGenes);
-                else needsPawnUpdate = true;
+                if (maleLocked && malePawn != null)
+                    UpdatePreviewPawnGenes(malePawn, currentGenes);
+                else
+                    needsPawnUpdate = true;
 
-                lastGeneCount = currentGeneCount;
+                lastGeneCount = count;
             }
 
             if (needsPawnUpdate)
             {
-                GenerateOrRefreshPawns(selectedGenes);
+                GenerateOrRefreshPawns(currentGenes);
                 needsPawnUpdate = false;
             }
 
-            DrawLayout(inRect, selectedGenes);
+            DrawLayout(inRect, currentGenes);
         }
 
         public override void WindowUpdate()
         {
             base.WindowUpdate();
 
-            // Close if main dialogs closed from elsewhere
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen) &&
-                (xenogermDialog == null || !xenogermDialog.IsOpen) &&
-                IsOpen)
+            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
+             && (xenogermDialog == null || !xenogermDialog.IsOpen)
+             && IsOpen)
             {
-                Close(false); return;
+                Close(false);
+                return;
             }
 
-            // Periodic gene‑change check
             if (++updateTicks >= UPDATE_INTERVAL)
             {
                 updateTicks = 0;
-                List<GeneDef> genes = TryGetCurrentGenes(out int cnt);
-                if (cnt != lastGeneCount) needsPawnUpdate = true;
+                int cnt;
+                TryGetCurrentGenes(out cnt);
+                if (cnt != lastGeneCount)
+                    needsPawnUpdate = true;
             }
         }
 
@@ -155,61 +166,42 @@ namespace XenoPreview
         {
             const float labelH = 20f;
             const float buttonH = 24f;
-            const float verticalGap = 5f;
-            const float halfGap = 5f;
+            const float gap = 5f;
 
-            float usablePortraitH = inRect.height - (labelH + buttonH + buttonH + 3 * verticalGap);
-            float portraitW = (inRect.width - halfGap) / 2;
+            float portraitH = inRect.height - (labelH + buttonH + buttonH + 3 * gap);
+            float portraitW = (inRect.width - gap) / 2f;
 
-            // ----- Portraits -----
-            Rect femPortrait = new Rect(0f, 0f, portraitW, usablePortraitH);
-            Rect malePortrait = new Rect(portraitW + halfGap, 0f, portraitW, usablePortraitH);
+            Rect femRect = new Rect(0, 0, portraitW, portraitH);
+            Rect maleRect = new Rect(portraitW + gap, 0, portraitW, portraitH);
 
-            DrawPawnPortrait(femalePawn, femPortrait);
-            DrawPawnPortrait(malePawn, malePortrait);
+            DrawPawnPortrait(femalePawn, femRect);
+            DrawPawnPortrait(malePawn, maleRect);
 
-            // ----- Gender labels -----
-            Rect femLabel = new Rect(femPortrait.x, femPortrait.yMax, femPortrait.width, labelH);
-            Rect maleLabel = new Rect(malePortrait.x, malePortrait.yMax, malePortrait.width, labelH);
+            Rect femLabel = new Rect(femRect.x, femRect.yMax + gap, femRect.width, labelH);
+            Rect maleLabel = new Rect(maleRect.x, maleRect.yMax + gap, maleRect.width, labelH);
 
             Text.Anchor = TextAnchor.MiddleCenter;
             Widgets.Label(femLabel, "Female");
             Widgets.Label(maleLabel, "Male");
             Text.Anchor = TextAnchor.UpperLeft;
 
-            // ----- Lock buttons (per‑gender) -----
-            Rect femLockRect = new Rect(femLabel.x, femLabel.yMax + verticalGap, femLabel.width, buttonH);
-            Rect maleLockRect = new Rect(maleLabel.x, maleLabel.yMax + verticalGap, maleLabel.width, buttonH);
+            Rect femLock = new Rect(femLabel.x, femLabel.yMax + gap, femLabel.width, buttonH);
+            Rect maleLock = new Rect(maleLabel.x, maleLabel.yMax + gap, maleLabel.width, buttonH);
 
-            if (Widgets.ButtonText(femLockRect, femaleLocked ? "Locked" : "Unlocked"))
+            if (Widgets.ButtonText(femLock, femaleLocked ? "Locked" : "Unlocked"))
             {
                 femaleLocked = !femaleLocked;
                 if (!femaleLocked && activeGenes != null) needsPawnUpdate = true;
             }
-            if (Widgets.ButtonText(maleLockRect, maleLocked ? "Locked" : "Unlocked"))
+            if (Widgets.ButtonText(maleLock, maleLocked ? "Locked" : "Unlocked"))
             {
                 maleLocked = !maleLocked;
                 if (!maleLocked && activeGenes != null) needsPawnUpdate = true;
             }
 
-            // ----- Reroll button (centered) -----
-            float rerollY = femLockRect.yMax + verticalGap;
-            float rerollW = 90f;
-            Rect rerollRect = new Rect(inRect.width / 2 - rerollW / 2, rerollY, rerollW, buttonH);
-
-            if (Widgets.ButtonText(rerollRect, "Reroll"))
-            {
-                // Only regenerate pawns that are **not** locked.
-                if (!femaleLocked || !maleLocked)
-                {
-                    GenerateOrRefreshPawns(activeGenes); // default parameter -> forceNewUnlocked = false
-                }
-                else
-                {
-                    //Log.Message("[XenoPreview] Both pawns are locked – nothing to reroll.");
-                }
-            }
-
+            Rect reroll = new Rect((inRect.width - 90f) / 2f, femLock.yMax + gap, 90f, buttonH);
+            if (Widgets.ButtonText(reroll, "Reroll") && (!femaleLocked || !maleLocked))
+                GenerateOrRefreshPawns(activeGenes);
         }
 
         private void DrawPawnPortrait(Pawn pawn, Rect rect)
@@ -218,7 +210,7 @@ namespace XenoPreview
             {
                 try
                 {
-                    Texture tex = PortraitsCache.Get(pawn, rect.size, Rot4.South, Vector3.zero, 1f);
+                    var tex = PortraitsCache.Get(pawn, rect.size, Rot4.South, Vector3.zero);
                     Widgets.DrawTextureFitted(rect, tex, 1f);
                 }
                 catch (Exception ex)
@@ -228,7 +220,9 @@ namespace XenoPreview
                 }
             }
             else
+            {
                 DrawPlaceholder(rect, "Add genes to see preview");
+            }
         }
 
         private void DrawPlaceholder(Rect rect, string msg)
@@ -249,17 +243,11 @@ namespace XenoPreview
             try
             {
                 if (xenotypeDialog != null)
-                {
-                    genes = Traverse.Create(xenotypeDialog)
-                                    .Field("selectedGenes")
-                                    .GetValue<List<GeneDef>>();
-                }
+                    genes = Traverse.Create(xenotypeDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
                 else if (xenogermDialog != null)
                 {
                     genes = new List<GeneDef>();
-                    var packs = Traverse.Create(xenogermDialog)
-                                        .Field("selectedGenepacks")
-                                        .GetValue<List<Genepack>>();
+                    var packs = Traverse.Create(xenogermDialog).Field("selectedGenepacks").GetValue<List<Genepack>>();
                     if (packs != null)
                         foreach (var gp in packs)
                             if (gp?.GeneSet?.GenesListForReading != null)
@@ -267,7 +255,10 @@ namespace XenoPreview
                 }
                 if (genes != null) count = genes.Count;
             }
-            catch (Exception ex) { Log.Warning($"[XenoPreview] Could not fetch genes: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                Log.Warning($"[XenoPreview] Could not fetch genes: {ex.Message}");
+            }
             return genes;
         }
 
@@ -275,120 +266,106 @@ namespace XenoPreview
         {
             if (genes == null || genes.Count == 0)
             {
-                Cleanup(); return;
+                Cleanup();
+                return;
             }
 
-            CustomXenotype tmpXeno = new CustomXenotype
+            var tmpXeno = new CustomXenotype
             {
                 genes = new List<GeneDef>(genes),
                 name = "TempPreviewXenotype"
             };
 
-            // Female
             if (!femaleLocked || forceNewUnlocked)
             {
                 if (!femaleLocked) DestroyPawn(ref femalePawn);
                 femalePawn = GeneratePawn(Gender.Female, tmpXeno);
             }
-            else // locked but genes changed: update genes only
+            else
+            {
                 UpdatePreviewPawnGenes(femalePawn, genes);
+            }
 
-            // Male
             if (!maleLocked || forceNewUnlocked)
             {
                 if (!maleLocked) DestroyPawn(ref malePawn);
                 malePawn = GeneratePawn(Gender.Male, tmpXeno);
             }
             else
+            {
                 UpdatePreviewPawnGenes(malePawn, genes);
+            }
         }
 
         private Pawn GeneratePawn(Gender gender, CustomXenotype xeno)
         {
             try
             {
-                var req = new PawnGenerationRequest(
+                var request = new PawnGenerationRequest(
                     PawnKindDefOf.Colonist,
-                    Faction.OfPlayer,
-                    PawnGenerationContext.NonPlayer,
-                    fixedGender: gender,
                     forceGenerateNewPawn: true,
-                    allowDead: false,
-                    allowDowned: false,
                     canGeneratePawnRelations: false,
-                    mustBeCapableOfViolence: false,
                     colonistRelationChanceFactor: 0f,
-                    forceAddFreeWarmLayerIfNeeded: false,
-                    allowGay: true,
-                    allowFood: false,
-                    allowAddictions: false,
-                    inhabitant: false,
-                    certainlyBeenInCryptosleep: false,
-                    forceRedressWorldPawnIfFormerColonist: false,
-                    worldPawnFactionDoesntMatter: false,
-                    biocodeWeaponChance: 0f,
-                    biocodeApparelChance: 0f,
-                    relationWithExtraPawnChanceFactor: 0f,
+                    fixedGender: gender,
                     fixedBiologicalAge: 25f,
                     fixedChronologicalAge: 25f,
-                    forcedXenotype: null,
                     forcedCustomXenotype: xeno,
                     forceNoIdeo: true,
                     forceNoBackstory: true,
-                    forbidAnyTitle: true);
+                    forbidAnyTitle: true
+                );
 
-                var p = PawnGenerator.GeneratePawn(req);
-
-                // Remember this pawn’s original hair colour
+                var p = PawnGenerator.GeneratePawn(request);
                 if (gender == Gender.Female)
                     femaleNaturalHairColor = p.story.HairColor;
                 else
                     maleNaturalHairColor = p.story.HairColor;
 
-                p.needs?.AllNeeds?.Clear();
+                p.needs?.AllNeeds.Clear();
                 if (p.mindState != null) p.mindState.Active = false;
                 PortraitsCache.SetDirty(p);
                 return p;
             }
             catch (Exception ex)
             {
-                Log.Error("[XenoPreview] Pawn generation failed: " + ex);
+                Log.Error($"[XenoPreview] Pawn generation failed: {ex}");
                 return null;
             }
         }
 
-        // === 3. UpdatePreviewPawnGenes: keep genes in sync and restore natural hair colour ===
         private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> selectedGenes)
         {
             if (pawn == null || selectedGenes == null) return;
 
-            // A. Remove genes no longer selected
-            var toRemove = pawn.genes.GenesListForReading.Where(g => !selectedGenes.Contains(g.def)).ToList();
+            // remove deselected
+            var toRemove = pawn.genes.GenesListForReading
+                                  .Where(g => !selectedGenes.Contains(g.def))
+                                  .ToList();
             foreach (var g in toRemove)
                 pawn.genes.RemoveGene(g);
 
-            // B. Add missing selected genes
+            // add new
             foreach (var def in selectedGenes)
                 if (!pawn.genes.GenesListForReading.Any(g => g.def == def))
                     pawn.genes.AddGene(def, true);
 
-            // C. If there is **no** hair‑colour gene active, revert to natural colour
-            bool hairGenePresent = selectedGenes.Any(def => def.hairColorOverride.HasValue);
-            if (!hairGenePresent)
-            {
-                pawn.story.HairColor = pawn.gender == Gender.Female ? femaleNaturalHairColor : maleNaturalHairColor;
-            }
+            // restore hair color if needed
+            bool hairGene = selectedGenes.Any(d => d.hairColorOverride.HasValue);
+            if (!hairGene)
+                pawn.story.HairColor = pawn.gender == Gender.Female
+                    ? femaleNaturalHairColor
+                    : maleNaturalHairColor;
 
             PortraitsCache.SetDirty(pawn);
         }
 
-
-
         private void DestroyPawn(ref Pawn p)
         {
-            if (p != null && !p.Destroyed) p.Destroy(DestroyMode.Vanish);
+            if (p != null && !p.Destroyed)
+                p.Destroy(DestroyMode.Vanish);
             p = null;
         }
+
         private void Cleanup()
         {
             if (!femaleLocked) DestroyPawn(ref femalePawn);

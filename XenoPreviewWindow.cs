@@ -19,6 +19,9 @@ namespace XenoPreview
         private bool femaleLocked;
         private bool maleLocked;
 
+        private Rot4 femaleRotation = Rot4.South;
+        private Rot4 maleRotation = Rot4.South;
+
         private Color femaleNaturalHairColor;
         private Color maleNaturalHairColor;
 
@@ -28,11 +31,17 @@ namespace XenoPreview
         private int updateTicks;
         private const int UPDATE_INTERVAL = 15;
 
-        private static readonly Vector2 WindowSize = new Vector2(280f, 330f);
+        private bool isMinimized = false;
+        private static readonly Vector2 WindowSize = new Vector2(280f, 410f);
+
+        // Button size constants - both buttons use these exact same dimensions
+        private const float BUTTON_WIDTH = 120f;
+        private const float BUTTON_HEIGHT = 30f;
+        private static readonly Vector2 MinimizedSize = new Vector2(180f, 60f); // Button + padding
         #endregion
 
         #region Constructors
-        public override Vector2 InitialSize => WindowSize;
+        public override Vector2 InitialSize => isMinimized ? MinimizedSize : WindowSize;
 
         public XenoPreviewWindow() : base()
         {
@@ -68,6 +77,8 @@ namespace XenoPreview
             float x = 0f, y = 0f;
             bool ok = false;
 
+            Vector2 currentSize = isMinimized ? MinimizedSize : WindowSize;
+
             if (xenotypeDialog != null && xenotypeDialog.IsOpen)
             {
                 x = xenotypeDialog.windowRect.xMax + 10f;
@@ -84,11 +95,16 @@ namespace XenoPreview
             if (!ok) return;
 
             windowRect = new Rect(
-                Mathf.Min(x, UI.screenWidth - WindowSize.x),
-                Mathf.Clamp(y, 0f, UI.screenHeight - WindowSize.y),
-                WindowSize.x,
-                WindowSize.y
+                Mathf.Min(x, UI.screenWidth - currentSize.x),
+                Mathf.Clamp(y, 0f, UI.screenHeight - currentSize.y),
+                currentSize.x,
+                currentSize.y
             );
+        }
+
+        private bool CanGeneratePawns()
+        {
+            return Current.Game != null && Current.Game.World != null;
         }
         #endregion
 
@@ -99,6 +115,12 @@ namespace XenoPreview
              && (xenogermDialog == null || !xenogermDialog.IsOpen))
             {
                 Close(false);
+                return;
+            }
+
+            if (isMinimized)
+            {
+                DrawMinimizedWindow(inRect);
                 return;
             }
 
@@ -120,7 +142,7 @@ namespace XenoPreview
                 lastGeneCount = count;
             }
 
-            if (needsPawnUpdate)
+            if (needsPawnUpdate && CanGeneratePawns())
             {
                 GenerateOrRefreshPawns(currentGenes);
                 needsPawnUpdate = false;
@@ -129,12 +151,39 @@ namespace XenoPreview
             DrawLayout(inRect, currentGenes);
         }
 
+        private void DrawMinimizedWindow(Rect inRect)
+        {
+            // Make the button fill most of the window but maintain same size as hide button
+            Rect buttonRect = new Rect(
+                (inRect.width - BUTTON_WIDTH) / 2f,
+                (inRect.height - BUTTON_HEIGHT) / 2f,
+                BUTTON_WIDTH,
+                BUTTON_HEIGHT
+            );
+
+            // Draw background matching the hide button style
+            GUI.color = new Color(0.3f, 0.5f, 0.7f, 0.9f);
+            GUI.DrawTexture(buttonRect, BaseContent.WhiteTex);
+            GUI.color = Color.white;
+            Widgets.DrawHighlight(buttonRect);
+
+            Text.Anchor = TextAnchor.MiddleCenter;
+            Text.Font = GameFont.Small;
+
+            if (Widgets.ButtonText(buttonRect, "Show Preview", true, true, Color.white))
+            {
+                isMinimized = false;
+                UpdatePosition();
+            }
+            Text.Anchor = TextAnchor.UpperLeft;
+        }
+
         public override void WindowUpdate()
         {
             base.WindowUpdate();
 
             if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
-             && (xenogermDialog == null || !xenogermDialog.IsOpen)
+             && (xenogermDialog != null && !xenogermDialog.IsOpen)
              && IsOpen)
             {
                 Close(false);
@@ -166,16 +215,41 @@ namespace XenoPreview
         {
             const float labelH = 20f;
             const float buttonH = 24f;
+            const float rotateButtonW = 30f;
             const float gap = 5f;
 
-            float portraitH = inRect.height - (labelH + buttonH + buttonH + 3 * gap);
+            // Hide button in top left corner - EXACT same size as Show Preview button
+            Rect hideButton = new Rect(5f, 5f, BUTTON_WIDTH, BUTTON_HEIGHT);
+            if (Widgets.ButtonText(hideButton, "Hide Preview"))
+            {
+                isMinimized = true;
+                UpdatePosition();
+            }
+
+            // Adjust portrait area to account for hide button
+            float portraitStartY = hideButton.yMax + gap;
+            float portraitH = inRect.height - portraitStartY - (labelH + buttonH + buttonH + 3 * gap);
             float portraitW = (inRect.width - gap) / 2f;
 
-            Rect femRect = new Rect(0, 0, portraitW, portraitH);
-            Rect maleRect = new Rect(portraitW + gap, 0, portraitW, portraitH);
+            Rect femRect = new Rect(0, portraitStartY, portraitW, portraitH);
+            Rect maleRect = new Rect(portraitW + gap, portraitStartY, portraitW, portraitH);
 
-            DrawPawnPortrait(femalePawn, femRect);
-            DrawPawnPortrait(malePawn, maleRect);
+            DrawPawnPortrait(femalePawn, femRect, femaleRotation);
+            DrawPawnPortrait(malePawn, maleRect, maleRotation);
+
+            // Rotation buttons
+            Rect femRotateRect = new Rect(femRect.x + femRect.width - rotateButtonW, femRect.y + 5f, rotateButtonW, buttonH);
+            Rect maleRotateRect = new Rect(maleRect.x + maleRect.width - rotateButtonW, maleRect.y + 5f, rotateButtonW, buttonH);
+
+            if (Widgets.ButtonText(femRotateRect, "↻"))
+            {
+                femaleRotation = femaleRotation.Rotated(RotationDirection.Clockwise);
+            }
+
+            if (Widgets.ButtonText(maleRotateRect, "↻"))
+            {
+                maleRotation = maleRotation.Rotated(RotationDirection.Clockwise);
+            }
 
             Rect femLabel = new Rect(femRect.x, femRect.yMax + gap, femRect.width, labelH);
             Rect maleLabel = new Rect(maleRect.x, maleRect.yMax + gap, maleRect.width, labelH);
@@ -204,13 +278,19 @@ namespace XenoPreview
                 GenerateOrRefreshPawns(activeGenes);
         }
 
-        private void DrawPawnPortrait(Pawn pawn, Rect rect)
+        private void DrawPawnPortrait(Pawn pawn, Rect rect, Rot4 rotation)
         {
+            if (!CanGeneratePawns())
+            {
+                DrawPlaceholder(rect, "Need world to generate pawns");
+                return;
+            }
+
             if (pawn != null)
             {
                 try
                 {
-                    var tex = PortraitsCache.Get(pawn, rect.size, Rot4.South, Vector3.zero);
+                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
                     Widgets.DrawTextureFitted(rect, tex, 1f);
                 }
                 catch (Exception ex)
@@ -264,7 +344,7 @@ namespace XenoPreview
 
         private void GenerateOrRefreshPawns(List<GeneDef> genes, bool forceNewUnlocked = false)
         {
-            if (genes == null || genes.Count == 0)
+            if (genes == null || genes.Count == 0 || !CanGeneratePawns())
             {
                 Cleanup();
                 return;

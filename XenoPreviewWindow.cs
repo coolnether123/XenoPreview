@@ -282,7 +282,7 @@ namespace XenoPreview
         {
             if (!CanGeneratePawns())
             {
-                DrawPlaceholder(rect, "Need world to generate pawns");
+                DrawPlaceholder(rect, "Unable to generate pawn preview in menu. Please start a new game or load a save to enable this.");
                 return;
             }
 

@@ -283,7 +283,7 @@ namespace XenoPreview
         {
             if (!CanGeneratePawns())
             {
-                CreateNewTempWorld();
+                Root_Play.SetupForQuickTestPlay();
             }
 
             if (pawn != null)
@@ -375,20 +375,6 @@ namespace XenoPreview
             {
                 UpdatePreviewPawnGenes(malePawn, genes);
             }
-        }
-
-        private void CreateNewTempWorld()
-        {
-            Current.ProgramState = ProgramState.Entry;
-            Current.Game = new Game();
-            Current.Game.InitData = new GameInitData();
-            Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
-            Find.Scenario.PreConfigure();
-            Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
-            Current.Game.World = WorldGenerator.GenerateWorld(0.05f, GenText.RandomSeedString(), OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal);
-            Find.GameInitData.ChooseRandomStartingTile();
-            Find.GameInitData.mapSize = 150;
-            Find.Scenario.PostIdeoChosen();
         }
 
         private Pawn GeneratePawn(Gender gender, CustomXenotype xeno)

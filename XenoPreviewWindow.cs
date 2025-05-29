@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using RimWorld;
+using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -282,8 +283,7 @@ namespace XenoPreview
         {
             if (!CanGeneratePawns())
             {
-                DrawPlaceholder(rect, "Unable to generate pawn preview in menu. Please start a new game or load a save to enable this.");
-                return;
+                CreateNewTempWorld();
             }
 
             if (pawn != null)
@@ -377,6 +377,20 @@ namespace XenoPreview
             }
         }
 
+        private void CreateNewTempWorld()
+        {
+            Current.ProgramState = ProgramState.Entry;
+            Current.Game = new Game();
+            Current.Game.InitData = new GameInitData();
+            Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
+            Find.Scenario.PreConfigure();
+            Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
+            Current.Game.World = WorldGenerator.GenerateWorld(0.05f, GenText.RandomSeedString(), OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.Normal);
+            Find.GameInitData.ChooseRandomStartingTile();
+            Find.GameInitData.mapSize = 150;
+            Find.Scenario.PostIdeoChosen();
+        }
+
         private Pawn GeneratePawn(Gender gender, CustomXenotype xeno)
         {
             try
@@ -394,8 +408,9 @@ namespace XenoPreview
                     forceNoBackstory: true,
                     forbidAnyTitle: true
                 );
-
+                Log.Message("Generating Pawn");
                 var p = PawnGenerator.GeneratePawn(request);
+                Log.Message("Finished Generating Pawn");
                 if (gender == Gender.Female)
                     femaleNaturalHairColor = p.story.HairColor;
                 else

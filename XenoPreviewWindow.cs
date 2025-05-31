@@ -394,9 +394,9 @@ namespace XenoPreview
                     forceNoBackstory: true,
                     forbidAnyTitle: true
                 );
-                Log.Message("Generating Pawn");
+                //Log.Message("Generating Pawn");
                 var p = PawnGenerator.GeneratePawn(request);
-                Log.Message("Finished Generating Pawn");
+                //Log.Message("Finished Generating Pawn");
                 if (gender == Gender.Female)
                     femaleNaturalHairColor = p.story.HairColor;
                 else

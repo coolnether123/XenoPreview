@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Verse;
+using Verse.Noise;
 
 namespace XenoPreview
 {
@@ -290,6 +291,9 @@ namespace XenoPreview
             {
                 try
                 {
+                    /*var vec = new Vector2(1.25f, 1f);
+                    var recSize = rect.size;
+                    recSize.Scale(vec);*/
                     var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
                     Widgets.DrawTextureFitted(rect, tex, 1f);
                 }

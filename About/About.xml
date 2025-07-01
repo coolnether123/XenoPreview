@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>XenoPreview</name>
+  <author>coolnether123</author>
+  <supportedVersions>
+    <li>1.4</li>
+    <li>1.5</li>
+	<li>1.6</li>
+  </supportedVersions>
+  <packageId>coolnether123.XenoPreview</packageId>
+  <description>XenoPreview adds a live preview window to the xenotype creation screen. As you select genes, instantly see exactly how your custom xenotypes will appear in-game. Each gender has an individual lock, allowing you to reroll appearances separately and rotate them until you find the perfect look. This mod is safe to add or remove at any time from your save without any issues. Original idea suggested on the RimWorld Discord: https://discord.com/channels/214523379766525963/1372022155193225226</description>
+  <modDependencies>
+    <li>
+      <packageId>Ludeon.RimWorld.Biotech</packageId>
+      <displayName>RimWorld Biotech</displayName>
+    </li>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <steamWorkshopUrl>steam://url/CommunityFilePage/2009463077</steamWorkshopUrl>
+      <downloadUrl>https://github.com/pardeike/HarmonyRimWorld/releases/latest</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+    <li>Ludeon.RimWorld</li>
+    <li>Ludeon.RimWorld.Biotech</li>
+  </loadAfter>
+</ModMetaData>

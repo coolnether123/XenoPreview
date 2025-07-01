@@ -43,11 +43,11 @@ namespace XenoPreview
         {
             get
             {
-                float height = 460f;
+                float height = 480f; 
                 // If Ideology is not active, reduce height by the size of the tattoo buttons and the gap
                 if (!ModsConfig.IdeologyActive)
                 {
-                    height -= (BUTTON_HEIGHT + 5f); // BUTTON_HEIGHT = 30f, gap = 5f
+                    height -= (BUTTON_HEIGHT + UI_GAP); // BUTTON_HEIGHT = 30f, UI_GAP = 5f
                 }
                 return new Vector2(320f, height);
             }
@@ -58,6 +58,13 @@ namespace XenoPreview
         private const float BUTTON_HEIGHT = 30f;
         private const float PORTRAIT_HEIGHT = 260f; // Fixed height for pawn portraits
         private static readonly Vector2 MinimizedSize = new Vector2(180f, 60f); // Button + padding
+
+        // UI Layout Constants
+        private const float LABEL_HEIGHT = 20f;
+        private const float ROTATE_BUTTON_WIDTH = 30f;
+        private const float UI_GAP = 5f;
+        private const float REROLL_BUTTON_WIDTH = 90f;
+        private const float REROLL_BUTTON_OFFSET_Y = 15f; // Offset for labels below portraits
         #endregion
 
         #region Constructors
@@ -65,7 +72,6 @@ namespace XenoPreview
 
         public XenoPreviewWindow() : base(null)
         {
-            Log.Message("[XenoPreview] XenoPreviewWindow constructor called.");
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
             draggable = false;
@@ -235,7 +241,7 @@ namespace XenoPreview
         private void DrawLayout(Rect inRect, List<GeneDef> activeGenes)
         {
             const float labelH = 20f;
-            const float buttonH = 24f;
+            const float buttonH = BUTTON_HEIGHT; // Use consistent button height
             const float rotateButtonW = 30f;
             const float gap = 5f;
 
@@ -285,8 +291,11 @@ namespace XenoPreview
             Widgets.Label(maleLabel, "Male");
             Text.Anchor = TextAnchor.UpperLeft;
 
-            Rect femLock = new Rect(femLabel.x, reroll.yMax + gap, femLabel.width, buttonH);
-            Rect maleLock = new Rect(maleLabel.x, reroll.yMax + gap, maleLabel.width, buttonH);
+            float currentY = reroll.yMax + gap;
+
+            // Lock buttons
+            Rect femLock = new Rect(femLabel.x, currentY, femLabel.width, buttonH);
+            Rect maleLock = new Rect(maleLabel.x, currentY, maleLabel.width, buttonH);
 
             if (Widgets.ButtonText(femLock, femaleLocked ? "Locked" : "Unlocked"))
             {
@@ -297,9 +306,11 @@ namespace XenoPreview
                 maleLocked = !maleLocked;
             }
 
+            currentY += buttonH + gap;
+
             // Show/Hide Clothes buttons
-            Rect femClothes = new Rect(femLock.x, femLock.yMax + gap, femLock.width, buttonH);
-            Rect maleClothes = new Rect(maleLock.x, maleLock.yMax + gap, maleLock.width, buttonH);
+            Rect femClothes = new Rect(femLock.x, currentY, femLock.width, buttonH);
+            Rect maleClothes = new Rect(maleLock.x, currentY, maleLock.width, buttonH);
 
             if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
@@ -314,11 +325,13 @@ namespace XenoPreview
                 malePawn.Drawer.renderer.SetAllGraphicsDirty();
             }
 
+            currentY += buttonH + gap;
+
             // Show/Hide Tattoos buttons
             if (ModsConfig.IdeologyActive)
             {
-                Rect femTattoos = new Rect(femClothes.x, femClothes.yMax + gap, femClothes.width, buttonH);
-                Rect maleTattoos = new Rect(maleClothes.x, maleClothes.yMax + gap, maleClothes.width, buttonH);
+                Rect femTattoos = new Rect(femClothes.x, currentY, femClothes.width, buttonH);
+                Rect maleTattoos = new Rect(maleClothes.x, currentY, maleClothes.width, buttonH);
 
                 if (Widgets.ButtonText(femTattoos, femaleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
@@ -421,8 +434,10 @@ namespace XenoPreview
             List<GeneDef> genes = null;
             try
             {
+                // "selectedGenes" is from Dialog_CreateXenotype
                 if (xenotypeDialog != null)
                     genes = Traverse.Create(xenotypeDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
+                // "selectedGenepacks" is from Dialog_CreateXenogerm
                 else if (xenogermDialog != null)
                 {
                     genes = new List<GeneDef>();

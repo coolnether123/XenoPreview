@@ -14,7 +14,6 @@ namespace XenoPreview
 
         static XenoPreview()
         {
-            //Log.Message("[XenoPreview] MOD LOAD: Static constructor called. Version 1.0.0");
             try
             {
                 var harmony = new Harmony("coolnether123.XenoPreview");
@@ -27,7 +26,6 @@ namespace XenoPreview
                 {
                     harmony.Patch(originalMethod,
                         postfix: new HarmonyMethod(postfixMethod));
-                    //Log.Message("[XenoPreview] Successfully patched GeneCreationDialogBase.DoWindowContents");
                 }
                 else
                 {
@@ -42,7 +40,6 @@ namespace XenoPreview
                 {
                     harmony.Patch(closeMethod,
                         postfix: new HarmonyMethod(closePostfix));
-                    //Log.Message("[XenoPreview] Successfully patched Window.Close");
                 }
                 else
                 {
@@ -57,10 +54,7 @@ namespace XenoPreview
                 {
                     harmony.Patch(windowAddMethod,
                         postfix: new HarmonyMethod(windowAddPostfix));
-                    //Log.Message("[XenoPreview] Successfully patched WindowStack.Add");
                 }
-
-                //Log.Message("[XenoPreview] MOD LOAD: Harmony patches applied successfully.");
             }
             catch (Exception ex)
             {
@@ -71,33 +65,35 @@ namespace XenoPreview
 
     public static class Dialog_CreateXenotype_Patches
     {
+        // Helper to ensure the preview window is open and correctly configured
+        private static void EnsurePreviewWindowOpen(Window dialogInstance)
+        {
+            if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
+            {
+                XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
+                Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
+            }
+
+            if (dialogInstance is Dialog_CreateXenotype xenotypeDialog)
+            {
+                XenoPreview.PreviewWindowInstance.SetDialog(xenotypeDialog);
+            }
+            else if (dialogInstance is Dialog_CreateXenogerm xenogermDialog)
+            {
+                XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
+            }
+            XenoPreview.PreviewWindowInstance.UpdatePosition();
+        }
+
         // Postfix for GeneCreationDialogBase.DoWindowContents - works for both xenotype and xenogerm
         public static void DoWindowContents_Postfix(GeneCreationDialogBase __instance, Rect rect)
         {
             try
             {
                 // Handle both Dialog_CreateXenotype and Dialog_CreateXenogerm
-                if (__instance is Dialog_CreateXenotype xenotypeDialog)
+                if (__instance is Dialog_CreateXenotype || __instance is Dialog_CreateXenogerm)
                 {
-                    if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-
-                    XenoPreview.PreviewWindowInstance.SetDialog(xenotypeDialog);
-                    XenoPreview.PreviewWindowInstance.UpdatePosition();
-                }
-                else if (__instance is Dialog_CreateXenogerm xenogermDialog)
-                {
-                    if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-
-                    XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
-                    XenoPreview.PreviewWindowInstance.UpdatePosition();
+                    EnsurePreviewWindowOpen(__instance);
                 }
             }
             catch (Exception ex)
@@ -121,7 +117,6 @@ namespace XenoPreview
                 {
                     XenoPreview.PreviewWindowInstance.Close(false);
                     XenoPreview.PreviewWindowInstance = null;
-                    //Log.Message("[XenoPreview] Preview window closed with main dialog.");
                 }
             }
             catch (Exception ex)
@@ -135,30 +130,11 @@ namespace XenoPreview
         {
             try
             {
-                // Check for Dialog_CreateXenotype
-                if (window is Dialog_CreateXenotype dialogInstance)
+                // Check for Dialog_CreateXenotype or Dialog_CreateXenogerm
+                if (window is Dialog_CreateXenotype || window is Dialog_CreateXenogerm)
                 {
-                    if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        XenoPreview.PreviewWindowInstance.SetDialog(dialogInstance);
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-                    return;
+                    EnsurePreviewWindowOpen(window);
                 }
-
-                // Check for Dialog_CreateXenogerm (gene assembler)
-                if (window is Dialog_CreateXenogerm xenogermDialog)
-                {
-                    if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-                    return;
-                }
-
             }
             catch (Exception ex)
             {

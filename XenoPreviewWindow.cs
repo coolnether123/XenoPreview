@@ -70,7 +70,7 @@ namespace XenoPreview
         #region Constructors
         public override Vector2 InitialSize => isMinimized ? MinimizedSize : WindowSize;
 
-        public XenoPreviewWindow() : base(null)
+        public XenoPreviewWindow() : base() // Add null if 1.5 > but remove if for 1.4
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
@@ -316,13 +316,61 @@ namespace XenoPreview
             {
                 femaleShowClothes = !femaleShowClothes;
                 PortraitsCache.SetDirty(femalePawn);
-                femalePawn.Drawer.renderer.SetAllGraphicsDirty();
+                femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+                /* 1.4: Apparel manipulation for immediate update
+                if (femalePawn != null)
+                {
+                    if (!femaleShowClothes) // Hiding clothes
+                    {
+                        // 1.4: Store and clear apparel
+                        if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
+                        {
+                            originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
+                            femalePawn.apparel.WornApparel.Clear();
+                        }
+                    }
+                    else // Showing clothes
+                    {
+                        // 1.4: Restore apparel
+                        if (originalApparel.TryGetValue(femalePawn, out var apparel))
+                        {
+                            femalePawn.apparel.WornApparel.AddRange(apparel);
+                            originalApparel.Remove(femalePawn);
+                        }
+                    }
+                    // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                }
+                */
             }
             if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
                 maleShowClothes = !maleShowClothes;
                 PortraitsCache.SetDirty(malePawn);
-                malePawn.Drawer.renderer.SetAllGraphicsDirty();
+                malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+                /* 1.4: Apparel manipulation for immediate update
+                if (malePawn != null)
+                {
+                    if (!maleShowClothes) // Hiding clothes
+                    {
+                        // 1.4: Store and clear apparel
+                        if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
+                        {
+                            originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
+                            malePawn.apparel.WornApparel.Clear();
+                        }
+                    }
+                    else // Showing clothes
+                    {
+                        // 1.4: Restore apparel
+                        if (originalApparel.TryGetValue(malePawn, out var apparel))
+                        {
+                            malePawn.apparel.WornApparel.AddRange(apparel);
+                            originalApparel.Remove(malePawn);
+                        }
+                    }
+                    // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                }
+                */
             }
 
             currentY += buttonH + gap;
@@ -337,13 +385,59 @@ namespace XenoPreview
                 {
                     femaleShowTattoos = !femaleShowTattoos;
                     PortraitsCache.SetDirty(femalePawn);
-                    femalePawn.Drawer.renderer.SetAllGraphicsDirty();
+                    femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+                    /* 1.4: Tattoo manipulation for immediate update
+                    if (femalePawn != null && femalePawn.style != null)
+                    {
+                        if (!femaleShowTattoos) // Hiding tattoos
+                        {
+                            // 1.4: Store and clear tattoos
+                            originalTattoos[femalePawn] = (femalePawn.style.FaceTattoo, femalePawn.style.BodyTattoo);
+                            if (femalePawn.style.FaceTattoo != null) femalePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                            if (femalePawn.style.BodyTattoo != null) femalePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
+                        }
+                        else // Showing tattoos
+                        {
+                            // 1.4: Restore tattoos
+                            if (originalTattoos.TryGetValue(femalePawn, out var tattoos))
+                            {
+                                femalePawn.style.FaceTattoo = tattoos.face;
+                                femalePawn.style.BodyTattoo = tattoos.body;
+                                originalTattoos.Remove(femalePawn);
+                            }
+                        }
+                        // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                    }
+                    */
                 }
                 if (Widgets.ButtonText(maleTattoos, maleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     maleShowTattoos = !maleShowTattoos;
                     PortraitsCache.SetDirty(malePawn);
-                    malePawn.Drawer.renderer.SetAllGraphicsDirty();
+                    malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+                    /* 1.4: Tattoo manipulation for immediate update
+                    if (malePawn != null && malePawn.style != null)
+                    {
+                        if (!maleShowTattoos) // Hiding tattoos
+                        {
+                            // 1.4: Store and clear tattoos
+                            originalTattoos[malePawn] = (malePawn.style.FaceTattoo, malePawn.style.BodyTattoo);
+                            if (malePawn.style.FaceTattoo != null) malePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                            if (malePawn.style.BodyTattoo != null) malePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
+                        }
+                        else // Showing tattoos
+                        {
+                            // 1.4: Restore tattoos
+                            if (originalTattoos.TryGetValue(malePawn, out var tattoos))
+                            {
+                                malePawn.style.FaceTattoo = tattoos.face;
+                                malePawn.style.BodyTattoo = tattoos.body;
+                                originalTattoos.Remove(malePawn);
+                            }
+                        }
+                        // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                    }
+                    */
                 }
             }
         }
@@ -360,12 +454,15 @@ namespace XenoPreview
                 bool showClothes = pawn.gender == Gender.Female ? femaleShowClothes : maleShowClothes;
                 bool showTattoos = pawn.gender == Gender.Female ? femaleShowTattoos : maleShowTattoos;
 
+                // 1.4: Logic moved to button handlers.
+                // 1.5+: Needed for other pre-rendering adjustments.
                 PreparePawnForPortrait(pawn, showClothes, showTattoos);
 
                 try
                 {
-                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
-                    Widgets.DrawTextureFitted(rect, tex, 1f);
+                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);  
+                    // Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+                    Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
                 }
                 catch (Exception ex)
                 {
@@ -374,7 +471,9 @@ namespace XenoPreview
                 }
                 finally
                 {
-                    RestorePawnAfterPortrait(pawn);
+                    // 1.4: Logic moved to button handlers.
+                // 1.5+: Needed for other pre-rendering adjustments.
+                RestorePawnAfterPortrait(pawn);
                 }
             }
             else
@@ -394,8 +493,8 @@ namespace XenoPreview
         #endregion
 
         #region Pawn generation / updates
-        private Dictionary<Pawn, List<Apparel>> originalApparel = new Dictionary<Pawn, List<Apparel>>();
-        private Dictionary<Pawn, (TattooDef face, TattooDef body)> originalTattoos = new Dictionary<Pawn, (TattooDef, TattooDef)>();
+        private Dictionary<Pawn, List<Apparel>> originalApparel = new Dictionary<Pawn, List<Apparel>>(); // 1.5: Used by PreparePawnForPortrait/RestorePawnAfterPortrait
+        private Dictionary<Pawn, (TattooDef face, TattooDef body)> originalTattoos = new Dictionary<Pawn, (TattooDef, TattooDef)>(); // 1.5: Used by PreparePawnForPortrait/RestorePawnAfterPortrait
 
         private void PreparePawnForPortrait(Pawn pawn, bool showClothes, bool showTattoos)
         {
@@ -413,6 +512,9 @@ namespace XenoPreview
             }
         }
 
+        // 1.4: This method is not needed as its logic is now in the button handlers.
+        // 1.5+: This method might be used for other pre-rendering adjustments if needed.
+        
         private void RestorePawnAfterPortrait(Pawn pawn)
         {
             if (originalApparel.TryGetValue(pawn, out var apparel))
@@ -428,6 +530,7 @@ namespace XenoPreview
                 originalTattoos.Remove(pawn);
             }
         }
+        
         private List<GeneDef> TryGetCurrentGenes(out int count)
         {
             count = 0;
@@ -510,19 +613,12 @@ namespace XenoPreview
                 );
                 //Log.Message("Generating Pawn");
                 var p = PawnGenerator.GeneratePawn(request);
-                p.story.favoriteColor = UnityEngine.Random.ColorHSV();
+                //p.story.favoriteColor = UnityEngine.Random.ColorHSV();
                 if (ModsConfig.IdeologyActive)
                 {
                     p.style.FaceTattoo = DefDatabase<TattooDef>.AllDefsListForReading.Where(x => x.tattooType == TattooType.Face).RandomElement();
                     p.style.BodyTattoo = DefDatabase<TattooDef>.AllDefsListForReading.Where(x => x.tattooType == TattooType.Body).RandomElement();
-
-                    var apparel = ThingMaker.MakeThing(ThingDefOf.Apparel_Collar, GenStuff.RandomStuffFor(ThingDefOf.Apparel_Collar));
-                    if (apparel != null)
-                    {
-                        p.apparel.Wear((Apparel)apparel);
-                    }
                 }
-
                 //Log.Message("Finished Generating Pawn");
                 if (gender == Gender.Female)
                     femaleNaturalHairColor = p.story.HairColor;
@@ -571,6 +667,8 @@ namespace XenoPreview
         {
             if (p != null)
             {
+                // 1.4: These are not needed as their logic is now in the button handlers.
+                // 1.5+: Needed if originalApparel and originalTattoos are used.
                 originalApparel.Remove(p);
                 originalTattoos.Remove(p);
                 if (!p.Destroyed)

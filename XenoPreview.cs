@@ -55,6 +55,20 @@ namespace XenoPreview
                     harmony.Patch(windowAddMethod,
                         postfix: new HarmonyMethod(windowAddPostfix));
                 }
+
+                // Patch for RimWorld.GeneUtility.GenerateXenotypeNameFromGenes to prevent NullReferenceException
+                MethodInfo generateXenotypeNameMethod = AccessTools.Method(typeof(RimWorld.GeneUtility), "GenerateXenotypeNameFromGenes");
+                MethodInfo generateXenotypeNamePrefix = AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "GenerateXenotypeNameFromGenes_Prefix");
+
+                if (generateXenotypeNameMethod != null && generateXenotypeNamePrefix != null)
+                {
+                    harmony.Patch(generateXenotypeNameMethod,
+                        prefix: new HarmonyMethod(generateXenotypeNamePrefix));
+                }
+                else
+                {
+                    Log.Error("[XenoPreview] Failed to find required methods for patching GenerateXenotypeNameFromGenes");
+                }
             }
             catch (Exception ex)
             {
@@ -83,6 +97,16 @@ namespace XenoPreview
                 XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
             }
             XenoPreview.PreviewWindowInstance.UpdatePosition();
+        }
+
+        public static bool GenerateXenotypeNameFromGenes_Prefix(ref string __result)
+        {
+            if (XenoPreview.PreviewWindowInstance != null && XenoPreview.PreviewWindowInstance.IsOpen)
+            {
+                __result = "PreviewXenotype"; // Provide a dummy name
+                return false; // Skip original method
+            }
+            return true; // Execute original method
         }
 
         // Postfix for GeneCreationDialogBase.DoWindowContents - works for both xenotype and xenogerm

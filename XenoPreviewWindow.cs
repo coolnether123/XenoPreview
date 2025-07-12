@@ -334,14 +334,10 @@ namespace XenoPreview
             if (Widgets.ButtonText(femLock, femaleLocked ? "Locked" : "Unlocked"))
             {
                 femaleLocked = !femaleLocked;
-                if (!femaleLocked && activeGenes != null)
-                    needsPawnUpdate = true;
             }
             if (Widgets.ButtonText(maleLock, maleLocked ? "Locked" : "Unlocked"))
             {
                 maleLocked = !maleLocked;
-                if (!maleLocked && activeGenes != null)
-                    needsPawnUpdate = true;
             }
 
             currentY += buttonH + gap;
@@ -349,77 +345,16 @@ namespace XenoPreview
             // Show/Hide Clothes buttons
             Rect femClothes = new Rect(femLock.x, currentY, femLock.width, buttonH);
             Rect maleClothes = new Rect(maleLock.x, currentY, maleLock.width, buttonH);
-
-            if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
-            {
-                femaleShowClothes = !femaleShowClothes;
-                PortraitsCache.SetDirty(femalePawn);
-#if V1_5U
-                femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-                // 1.4: Apparel manipulation for immediate update
-                if (femalePawn != null)
-                {
-                    if (!femaleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
-                            femalePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(femalePawn, out var apparel))
-                        {
-                            femalePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(femalePawn);
-                        }
-                    }
-                     femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
-                }
-#endif
-
-            }
-            if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
-            {
-                maleShowClothes = !maleShowClothes;
-                PortraitsCache.SetDirty(malePawn);
-#if V1_5U
-
-                malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-                //1.4: Apparel manipulation for immediate update
-                if (malePawn != null)
-                {
-                    if (!maleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
-                            malePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(malePawn, out var apparel))
-                        {
-                            malePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(malePawn);
-                        }
-                    }
-                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
-                }
-#endif
-            }
+            DoClothesButtons(femClothes, maleClothes);
 
             currentY += buttonH + gap;
 
             // Show/Hide Tattoos buttons
+            DoTattoosButtons(buttonH, currentY, femClothes, maleClothes);
+        }
+
+        private void DoTattoosButtons(float buttonH, float currentY, Rect femClothes, Rect maleClothes)
+        {
             if (ModsConfig.IdeologyActive)
             {
                 Rect femTattoos = new Rect(femClothes.x, currentY, femClothes.width, buttonH);
@@ -486,12 +421,82 @@ namespace XenoPreview
                                 originalTattoos.Remove(malePawn);
                             }
                         }
-                         malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                     }
-                    
+
 #endif
 
                 }
+            }
+        }
+
+        private void DoClothesButtons(Rect femClothes, Rect maleClothes)
+        {
+            if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
+            {
+                femaleShowClothes = !femaleShowClothes;
+                PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
+                femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                // 1.4: Apparel manipulation for immediate update
+                if (femalePawn != null)
+                {
+                    if (!femaleShowClothes) // Hiding clothes
+                    {
+                        // 1.4: Store and clear apparel
+                        if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
+                        {
+                            originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
+                            femalePawn.apparel.WornApparel.Clear();
+                        }
+                    }
+                    else // Showing clothes
+                    {
+                        // 1.4: Restore apparel
+                        if (originalApparel.TryGetValue(femalePawn, out var apparel))
+                        {
+                            femalePawn.apparel.WornApparel.AddRange(apparel);
+                            originalApparel.Remove(femalePawn);
+                        }
+                    }
+                    femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                }
+#endif
+
+            }
+            if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
+            {
+                maleShowClothes = !maleShowClothes;
+                PortraitsCache.SetDirty(malePawn);
+#if V1_5U
+
+                malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                //1.4: Apparel manipulation for immediate update
+                if (malePawn != null)
+                {
+                    if (!maleShowClothes) // Hiding clothes
+                    {
+                        // 1.4: Store and clear apparel
+                        if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
+                        {
+                            originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
+                            malePawn.apparel.WornApparel.Clear();
+                        }
+                    }
+                    else // Showing clothes
+                    {
+                        // 1.4: Restore apparel
+                        if (originalApparel.TryGetValue(malePawn, out var apparel))
+                        {
+                            malePawn.apparel.WornApparel.AddRange(apparel);
+                            originalApparel.Remove(malePawn);
+                        }
+                    }
+                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                }
+#endif
             }
         }
 

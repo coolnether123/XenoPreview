@@ -461,8 +461,8 @@ namespace XenoPreview
                 try
                 {
                     var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);  
-                    // Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
-                    Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
+                    Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+                    // Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
                 }
                 catch (Exception ex)
                 {

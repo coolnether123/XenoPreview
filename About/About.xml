@@ -8,7 +8,7 @@
 	<li>1.6</li>
   </supportedVersions>
   <packageId>coolnether123.XenoPreview</packageId>
-  <description>XenoPreview adds a live preview window to the xenotype creation screen. As you select genes, instantly see exactly how your custom xenotypes will appear in-game. Each gender has an individual lock, allowing you to reroll appearances separately and rotate them until you find the perfect look. This mod is safe to add or remove at any time from your save without any issues. Original idea suggested on the RimWorld Discord: https://discord.com/channels/214523379766525963/1372022155193225226</description>
+  <description>XenoPreview adds a dynamic live preview window to the xenotype creation screen. Instantly see how your custom xenotypes will appear as you select genes. Features include individual gender locks for separate rerolls and rotation, and toggles for apparel and tattoos (Ideology DLC required for tattoos). Supports RimWorld 1.4, 1.5, and 1.6. Safe to add or remove from saves at any time. Original idea suggested on the RimWorld Discord: https://discord.com/channels/214523379766525963/1372022155193225226</description>
   <modDependencies>
     <li>
       <packageId>Ludeon.RimWorld.Biotech</packageId>

@@ -19,8 +19,15 @@ namespace XenoPreview
                 var harmony = new Harmony("coolnether123.XenoPreview");
 
                 // Patch the Window.Close method
-                MethodInfo closeMethod = AccessTools.Method(typeof(Window), "Close", new[] { typeof(bool) });
-                MethodInfo closePostfix = AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "Close_Postfix");
+                MethodInfo closeMethod = AccessTools.Method(
+                    typeof(Window),
+                    "Close",
+                    new[] { typeof(bool) }
+                );
+                MethodInfo closePostfix = AccessTools.Method(
+                    typeof(Dialog_CreateXenotype_Patches),
+                    "Close_Postfix"
+                );
 
                 if (closeMethod != null && closePostfix != null)
                 {
@@ -29,14 +36,16 @@ namespace XenoPreview
                 }
                 else
                 {
-                    Log.Error("[XenoPreview] Failed to find required methods for patching Close");
+                    Log.Error(
+                        "[XenoPreview] Failed to find required methods for patching Close"
+                    );
                 }
 
                 // Patch for RimWorld.GeneUtility.GenerateXenotypeNameFromGenes to prevent NullReferenceException
                 MethodInfo generateXenotypeNameMethod = AccessTools.Method(typeof(RimWorld.GeneUtility), "GenerateXenotypeNameFromGenes");
                 MethodInfo generateXenotypeNamePrefix = AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "GenerateXenotypeNameFromGenes_Prefix");
 
-                if (generateXenotypeNameMethod != null && generateXenotypeNamePrefix != null)
+              if (generateXenotypeNameMethod != null && generateXenotypeNamePrefix != null)
                 {
                     harmony.Patch(generateXenotypeNameMethod,
                         prefix: new HarmonyMethod(generateXenotypeNamePrefix));
@@ -63,7 +72,10 @@ namespace XenoPreview
             }
             catch (Exception ex)
             {
-                Log.Error("[XenoPreview] MOD LOAD: CRITICAL - Failed to apply Harmony patches: " + ex.ToString());
+                Log.Error(
+                    "[XenoPreview] MOD LOAD: CRITICAL - Failed to apply Harmony patches: "
+                        + ex.ToString()
+                );
             }
         }
     }
@@ -115,12 +127,18 @@ namespace XenoPreview
             try
             {
                 // Check if it's Dialog_CreateXenotype or Dialog_CreateXenogerm
-                if (!(__instance is Dialog_CreateXenotype) && !(__instance is Dialog_CreateXenogerm))
+                if (
+                    !(__instance is Dialog_CreateXenotype)
+                    && !(__instance is Dialog_CreateXenogerm)
+                )
                 {
                     return;
                 }
 
-                if (XenoPreview.PreviewWindowInstance != null && XenoPreview.PreviewWindowInstance.IsOpen)
+                if (
+                    XenoPreview.PreviewWindowInstance != null
+                    && XenoPreview.PreviewWindowInstance.IsOpen
+                )
                 {
                     XenoPreview.PreviewWindowInstance.Close(false);
                     XenoPreview.PreviewWindowInstance = null;
@@ -131,6 +149,7 @@ namespace XenoPreview
                 Log.Error("[XenoPreview] Error in Close_Postfix: " + ex.ToString());
             }
         }
+
 
     }
 }

@@ -18,30 +18,6 @@ namespace XenoPreview
             {
                 var harmony = new Harmony("coolnether123.XenoPreview");
 
-                // Patch GeneCreationDialogBase for both xenotype creator and gene assembler
-                MethodInfo originalMethod = AccessTools.Method(
-                    typeof(GeneCreationDialogBase),
-                    "DoWindowContents"
-                );
-                MethodInfo postfixMethod = AccessTools.Method(
-                    typeof(Dialog_CreateXenotype_Patches),
-                    "DoWindowContents_Postfix"
-                );
-
-                if (originalMethod != null && postfixMethod != null)
-                {
-                    harmony.Patch(
-                        originalMethod,
-                        postfix: new HarmonyMethod(postfixMethod)
-                    );
-                }
-                else
-                {
-                    Log.Error(
-                        "[XenoPreview] Failed to find required methods for patching DoWindowContents"
-                    );
-                }
-
                 // Patch the Window.Close method
                 MethodInfo closeMethod = AccessTools.Method(
                     typeof(Window),
@@ -55,7 +31,8 @@ namespace XenoPreview
 
                 if (closeMethod != null && closePostfix != null)
                 {
-                    harmony.Patch(closeMethod, postfix: new HarmonyMethod(closePostfix));
+                    harmony.Patch(closeMethod,
+                        postfix: new HarmonyMethod(closePostfix));
                 }
                 else
                 {
@@ -64,20 +41,34 @@ namespace XenoPreview
                     );
                 }
 
-                // Keep an eye on WindowStack to detect when xenotype windows are opened
-                MethodInfo windowAddMethod = AccessTools.Method(typeof(WindowStack), "Add");
-                MethodInfo windowAddPostfix = AccessTools.Method(
-                    typeof(Dialog_CreateXenotype_Patches),
-                    "WindowStack_Add_Postfix"
-                );
+                // Patch for RimWorld.GeneUtility.GenerateXenotypeNameFromGenes to prevent NullReferenceException
+                MethodInfo generateXenotypeNameMethod = AccessTools.Method(typeof(RimWorld.GeneUtility), "GenerateXenotypeNameFromGenes");
+                MethodInfo generateXenotypeNamePrefix = AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "GenerateXenotypeNameFromGenes_Prefix");
 
-                if (windowAddMethod != null && windowAddPostfix != null)
+              if (generateXenotypeNameMethod != null && generateXenotypeNamePrefix != null)
                 {
-                    harmony.Patch(
-                        windowAddMethod,
-                        postfix: new HarmonyMethod(windowAddPostfix)
-                    );
+                    harmony.Patch(generateXenotypeNameMethod,
+                        prefix: new HarmonyMethod(generateXenotypeNamePrefix));
                 }
+                else
+                {
+                    Log.Error("[XenoPreview] Failed to find required methods for patching GenerateXenotypeNameFromGenes");
+                }
+
+                //Open the XenoPreview window when the Xenotype Creator or Gene Assembler is opened
+                MethodInfo OpenXenoWindowMethod = AccessTools.Method(typeof(GeneCreationDialogBase), "PreOpen");
+                MethodInfo OpenXenoWindowPostfix = AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "PreOpen_Prefix");
+
+                if (generateXenotypeNameMethod != null && generateXenotypeNamePrefix != null)
+                {
+                    harmony.Patch(OpenXenoWindowMethod,
+                        postfix: new HarmonyMethod(OpenXenoWindowPostfix));
+                }
+                else
+                {
+                    Log.Error("[XenoPreview] Failed to find required methods for patching PreOpen");
+                }
+
             }
             catch (Exception ex)
             {
@@ -89,49 +80,44 @@ namespace XenoPreview
         }
     }
 
+    
+
     public static class Dialog_CreateXenotype_Patches
     {
-        // Postfix for GeneCreationDialogBase.DoWindowContents - works for both xenotype and xenogerm
-        public static void DoWindowContents_Postfix(
-            GeneCreationDialogBase __instance,
-            Rect rect
-        )
+        // Helper to ensure the preview window is open and correctly configured
+        private static void EnsurePreviewWindowOpen(Window dialogInstance)
+        {
+            if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
+            {
+                XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
+                Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
+            }
+
+            XenoPreview.PreviewWindowInstance.SetDialog(dialogInstance);
+            //I don't want to set it manually, but this window doesn't know its size till after this one is opened. I tried to use a PostOpen Postfix patch, but it didn't work.
+            XenoPreview.PreviewWindowInstance.UpdatePosition(new Vector2(1474, 1009));
+
+        }
+
+        public static bool GenerateXenotypeNameFromGenes_Prefix(ref string __result)
+        {
+            if (XenoPreview.PreviewWindowInstance != null && XenoPreview.PreviewWindowInstance.IsOpen)
+            {
+                __result = "PreviewXenotype"; // Provide a dummy name
+                return false; // Skip original method
+            }
+            return true; // Execute original method
+        }
+
+        public static void PreOpen_Prefix(GeneCreationDialogBase __instance)
         {
             try
             {
-                // Handle both Dialog_CreateXenotype and Dialog_CreateXenogerm
-                if (__instance is Dialog_CreateXenotype xenotypeDialog)
-                {
-                    if (
-                        XenoPreview.PreviewWindowInstance == null
-                        || !XenoPreview.PreviewWindowInstance.IsOpen
-                    )
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-
-                    XenoPreview.PreviewWindowInstance.SetDialog(xenotypeDialog);
-                    XenoPreview.PreviewWindowInstance.UpdatePosition();
-                }
-                else if (__instance is Dialog_CreateXenogerm xenogermDialog)
-                {
-                    if (
-                        XenoPreview.PreviewWindowInstance == null
-                        || !XenoPreview.PreviewWindowInstance.IsOpen
-                    )
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-
-                    XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
-                    XenoPreview.PreviewWindowInstance.UpdatePosition();
-                }
+                    EnsurePreviewWindowOpen(__instance);
             }
             catch (Exception ex)
             {
-                Log.Error("[XenoPreview] Error in DoWindowContents_Postfix: " + ex.ToString());
+                Log.Error("[XenoPreview] Error in PostOpen_Postfix: " + ex.ToString());
             }
         }
 
@@ -164,46 +150,6 @@ namespace XenoPreview
             }
         }
 
-        // Watch for windows being added to detect gene-related dialogs
-        public static void WindowStack_Add_Postfix(Window window)
-        {
-            try
-            {
-                // Check for Dialog_CreateXenotype
-                if (window is Dialog_CreateXenotype dialogInstance)
-                {
-                    if (
-                        XenoPreview.PreviewWindowInstance == null
-                        || !XenoPreview.PreviewWindowInstance.IsOpen
-                    )
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        XenoPreview.PreviewWindowInstance.SetDialog(dialogInstance);
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-                    return;
-                }
 
-                // Check for Dialog_CreateXenogerm (gene assembler)
-                if (window is Dialog_CreateXenogerm xenogermDialog)
-                {
-                    if (
-                        XenoPreview.PreviewWindowInstance == null
-                        || !XenoPreview.PreviewWindowInstance.IsOpen
-                    )
-                    {
-                        XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();
-                        XenoPreview.PreviewWindowInstance.SetXenogermDialog(xenogermDialog);
-                        Find.WindowStack.Add(XenoPreview.PreviewWindowInstance);
-                    }
-                    return;
-                }
-            }
-            catch (Exception ex)
-            {
-                // Just log and continue
-                Log.Error("[XenoPreview] Error in WindowStack_Add_Postfix: " + ex.ToString());
-            }
-        }
     }
 }

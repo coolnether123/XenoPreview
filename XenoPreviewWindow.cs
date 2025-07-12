@@ -46,7 +46,7 @@ namespace XenoPreview
         {
             get
             {
-                float height = 480f; 
+                float height = 480f;
                 // If Ideology is not active, reduce height by the size of the tattoo buttons and the gap
                 if (!ModsConfig.IdeologyActive)
                 {
@@ -108,7 +108,7 @@ namespace XenoPreview
 
         public void UpdatePosition(Vector2? overridePosition = null)
         {
-            if(overridePosition.HasValue && (xenoDialog == null))
+            if (overridePosition.HasValue && (xenoDialog == null))
             {
                 storedPosition = overridePosition.Value;
             }
@@ -148,13 +148,13 @@ namespace XenoPreview
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
-            
+
             if ((xenoDialog == null || !xenoDialog.IsOpen))
             {
                 Close(false);
                 return;
             }
-            
+
             if (isMinimized)
             {
                 DrawMinimizedWindow(inRect);
@@ -325,7 +325,7 @@ namespace XenoPreview
             Widgets.Label(maleLabel, "Male");
             Text.Anchor = TextAnchor.UpperLeft;
 
-            float currentY = reroll.yMax + gap;
+            currentY = reroll.yMax + gap;
 
             // Lock buttons
             Rect femLock = new Rect(femLabel.x, currentY, femLabel.width, buttonH);
@@ -380,14 +380,14 @@ namespace XenoPreview
                     }
                      femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                 }
-                #endif
-                
+#endif
+
             }
             if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
                 maleShowClothes = !maleShowClothes;
                 PortraitsCache.SetDirty(malePawn);
-                #if V1_5U
+#if V1_5U
 
                 malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
 #elif V1_4
@@ -412,7 +412,7 @@ namespace XenoPreview
                             originalApparel.Remove(malePawn);
                         }
                     }
-                    // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                 }
 #endif
             }
@@ -429,7 +429,7 @@ namespace XenoPreview
                 {
                     femaleShowTattoos = !femaleShowTattoos;
                     PortraitsCache.SetDirty(femalePawn);
-                    #if V1_5U
+#if V1_5U
 
                     femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
 #elif V1_4
@@ -454,7 +454,7 @@ namespace XenoPreview
                                 originalTattoos.Remove(femalePawn);
                             }
                         }
-                        // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                     }
 #endif
                 }
@@ -462,7 +462,7 @@ namespace XenoPreview
                 {
                     maleShowTattoos = !maleShowTattoos;
                     PortraitsCache.SetDirty(malePawn);
-                    #if V1_5U
+#if V1_5U
 
                     malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
 #elif V1_4
@@ -486,7 +486,7 @@ namespace XenoPreview
                                 originalTattoos.Remove(malePawn);
                             }
                         }
-                        // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                         malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                     }
                     
 #endif
@@ -562,7 +562,7 @@ namespace XenoPreview
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
         }
-#endregion
+        #endregion
 
         #region Clothing and Tattoo Management
         private void UpdateClothingVisibility()
@@ -773,7 +773,7 @@ namespace XenoPreview
             }
         }
 #endif
-        
+
         private List<GeneDef> TryGetCurrentGenes(out int count)
         {
             count = 0;
@@ -942,6 +942,6 @@ namespace XenoPreview
             if (!maleLocked)
                 DestroyPawn(ref malePawn);
         }
-#endregion
+        #endregion
     }
 }

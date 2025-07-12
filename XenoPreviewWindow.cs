@@ -3,6 +3,7 @@ using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using Verse;
@@ -13,8 +14,8 @@ namespace XenoPreview
     public class XenoPreviewWindow : Window
     {
         #region Fields and constants
-        private Dialog_CreateXenotype xenotypeDialog;
-        private Dialog_CreateXenogerm xenogermDialog;
+        private GeneCreationDialogBase xenoDialog;
+        //private Dialog_CreateXenogerm xenogermDialog;
 
         private Pawn femalePawn;
         private Pawn malePawn;
@@ -37,6 +38,8 @@ namespace XenoPreview
 
         private int updateTicks;
         private const int UPDATE_INTERVAL = 15;
+
+        private static Vector2 storedPosition = Vector2.zero; // Used to store the last position of the window
 
         private bool isMinimized = false;
         private static Vector2 WindowSize
@@ -74,7 +77,7 @@ namespace XenoPreview
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
-            draggable = false;
+            draggable = true;
             resizeable = false;
             drawShadow = true;
             forcePause = preventCameraMotion = false;
@@ -85,49 +88,51 @@ namespace XenoPreview
         #endregion
 
         #region Dialog plumbing
-        public void SetDialog(Dialog_CreateXenotype dlg)
+
+        public void SetDialog(Window dialog)
         {
-            xenotypeDialog = dlg;
-            xenogermDialog = null;
-            UpdatePosition();
+            if (dialog is GeneCreationDialogBase)
+            {
+                xenoDialog = dialog as GeneCreationDialogBase;
+            }
+            else
+            {
+                Log.Error("[XenoPreview] Found dialog is not of correct type: " + dialog.GetType().ToString() + ". (Must be " + typeof(Dialog_CreateXenotype).ToString() + " or " + typeof(Dialog_CreateXenogerm));
+            }
         }
 
-        public void SetXenogermDialog(Dialog_CreateXenogerm dlg)
+        public void UpdatePosition(Vector2? overridePosition = null)
         {
-            xenogermDialog = dlg;
-            xenotypeDialog = null;
-            UpdatePosition();
-        }
+            if(overridePosition.HasValue && (xenoDialog == null))
+            {
+                storedPosition = overridePosition.Value;
+            }
 
-        public void UpdatePosition()
-        {
-            float x = 0f, y = 0f;
-            bool ok = false;
+            float x = storedPosition.x, y = storedPosition.y;
+
 
             Vector2 currentSize = isMinimized ? MinimizedSize : WindowSize;
-
-            if (xenotypeDialog != null && xenotypeDialog.IsOpen)
+            if (storedPosition == Vector2.zero || !UI.GUIToScreenRect(new Rect(Vector2.zero, new Vector2(UI.screenWidth, UI.screenHeight))).Contains(UI.GUIToScreenPoint(storedPosition)))
             {
-                x = xenotypeDialog.windowRect.xMax + 10f;
-                y = xenotypeDialog.windowRect.yMin;
-                ok = true;
+                if (xenoDialog != null)
+                {
+                    x = xenoDialog.windowRect.xMax + 10f;
+                    y = xenoDialog.windowRect.yMin;
+                }
+                else
+                {
+                    Log.Error("[XenoPreview] No active dialog found to position the preview window.");
+                }
             }
-            else if (xenogermDialog != null && xenogermDialog.IsOpen)
-            {
-                x = xenogermDialog.windowRect.xMax + 10f;
-                y = xenogermDialog.windowRect.yMin;
-                ok = true;
-            }
-
-            if (!ok) return;
 
             windowRect = new Rect(
-                Mathf.Min(x, UI.screenWidth - currentSize.x),
-                Mathf.Clamp(y, 0f, UI.screenHeight - currentSize.y),
+                x,
+                y,
                 currentSize.x,
                 currentSize.y
             );
         }
+
 
         private bool CanGeneratePawns()
         {
@@ -138,13 +143,13 @@ namespace XenoPreview
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
-             && (xenogermDialog == null || !xenogermDialog.IsOpen))
+            
+            if ((xenoDialog == null || !xenoDialog.IsOpen))
             {
                 Close(false);
                 return;
             }
-
+            
             if (isMinimized)
             {
                 DrawMinimizedWindow(inRect);
@@ -181,7 +186,7 @@ namespace XenoPreview
         private void DrawMinimizedWindow(Rect inRect)
         {
             // Make the button fill most of the window but maintain same size as hide button
-            Rect buttonRect = new Rect(
+            Rect showButtonRect = new Rect(
                 (inRect.width - BUTTON_WIDTH) / 2f,
                 (inRect.height - BUTTON_HEIGHT) / 2f,
                 BUTTON_WIDTH,
@@ -190,16 +195,20 @@ namespace XenoPreview
 
             // Draw background matching the hide button style
             GUI.color = new Color(0.3f, 0.5f, 0.7f, 0.9f);
-            GUI.DrawTexture(buttonRect, BaseContent.WhiteTex);
+            GUI.DrawTexture(showButtonRect, BaseContent.WhiteTex);
             GUI.color = Color.white;
-            Widgets.DrawHighlight(buttonRect);
+            Widgets.DrawHighlight(showButtonRect);
 
             Text.Anchor = TextAnchor.MiddleCenter;
             Text.Font = GameFont.Small;
 
-            if (Widgets.ButtonText(buttonRect, "Show Preview", true, true, Color.white))
+            if (Widgets.ButtonText(showButtonRect, "Show Preview", true, true, Color.white))
             {
                 isMinimized = false;
+                if (storedPosition != windowRect.position)
+                {
+                    storedPosition = windowRect.position;
+                }
                 UpdatePosition();
             }
             Text.Anchor = TextAnchor.UpperLeft;
@@ -209,8 +218,7 @@ namespace XenoPreview
         {
             base.WindowUpdate();
 
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
-             && (xenogermDialog != null && !xenogermDialog.IsOpen)
+            if ((xenoDialog == null || !xenoDialog.IsOpen)
              && IsOpen)
             {
                 Close(false);
@@ -234,6 +242,11 @@ namespace XenoPreview
             Cleanup();
             if (XenoPreview.PreviewWindowInstance == this)
                 XenoPreview.PreviewWindowInstance = null;
+            if (storedPosition != windowRect.position)
+            {
+                storedPosition = windowRect.position;
+            }
+
         }
         #endregion
 
@@ -250,6 +263,10 @@ namespace XenoPreview
             if (Widgets.ButtonText(hideButton, "Hide Preview"))
             {
                 isMinimized = true;
+                if (storedPosition != windowRect.position)
+                {
+                    storedPosition = windowRect.position;
+                }
                 UpdatePosition();
             }
 
@@ -316,8 +333,10 @@ namespace XenoPreview
             {
                 femaleShowClothes = !femaleShowClothes;
                 PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
                 femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                /* 1.4: Apparel manipulation for immediate update
+#elif V1_4
+                // 1.4: Apparel manipulation for immediate update
                 if (femalePawn != null)
                 {
                     if (!femaleShowClothes) // Hiding clothes
@@ -338,16 +357,20 @@ namespace XenoPreview
                             originalApparel.Remove(femalePawn);
                         }
                     }
-                    // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                     femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                 }
-                */
+                #endif
+                
             }
             if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
                 maleShowClothes = !maleShowClothes;
                 PortraitsCache.SetDirty(malePawn);
+                #if V1_5U
+
                 malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                /* 1.4: Apparel manipulation for immediate update
+#elif V1_4
+                //1.4: Apparel manipulation for immediate update
                 if (malePawn != null)
                 {
                     if (!maleShowClothes) // Hiding clothes
@@ -370,7 +393,7 @@ namespace XenoPreview
                     }
                     // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                 }
-                */
+#endif
             }
 
             currentY += buttonH + gap;
@@ -385,8 +408,12 @@ namespace XenoPreview
                 {
                     femaleShowTattoos = !femaleShowTattoos;
                     PortraitsCache.SetDirty(femalePawn);
+                    #if V1_5U
+
                     femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                    /* 1.4: Tattoo manipulation for immediate update
+#elif V1_4
+
+                    // 1.4: Tattoo manipulation for immediate update
                     if (femalePawn != null && femalePawn.style != null)
                     {
                         if (!femaleShowTattoos) // Hiding tattoos
@@ -408,14 +435,17 @@ namespace XenoPreview
                         }
                         // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                     }
-                    */
+#endif
                 }
                 if (Widgets.ButtonText(maleTattoos, maleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     maleShowTattoos = !maleShowTattoos;
                     PortraitsCache.SetDirty(malePawn);
+                    #if V1_5U
+
                     malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                    /* 1.4: Tattoo manipulation for immediate update
+#elif V1_4
+                    //1.4: Tattoo manipulation for immediate update
                     if (malePawn != null && malePawn.style != null)
                     {
                         if (!maleShowTattoos) // Hiding tattoos
@@ -437,7 +467,8 @@ namespace XenoPreview
                         }
                         // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
                     }
-                    */
+                    
+#endif
                 }
             }
         }
@@ -446,7 +477,21 @@ namespace XenoPreview
         {
             if (!CanGeneratePawns())
             {
+#if V1_6U
+                Current.ProgramState = ProgramState.Entry;
+                Game.ClearCaches();
+                Current.Game = new Game();
+                Current.Game.InitData = new GameInitData();
+                Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
+                Find.Scenario.PreConfigure();
+                Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
+                Current.Game.World = WorldGenerator.GenerateWorld(0.1f, GenText.RandomSeedString(), OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.AlmostNone, LandmarkDensity.Normal);
+                Find.GameInitData.ChooseRandomStartingTile();
+                Find.GameInitData.mapSize = 250;
+                Find.Scenario.PostIdeoChosen();
+#elif V1_5D
                 Root_Play.SetupForQuickTestPlay();
+#endif
             }
 
             if (pawn != null)
@@ -460,9 +505,12 @@ namespace XenoPreview
 
                 try
                 {
-                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);  
-                    // Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
+#if V1_5D
+                    Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+#elif V1_6U
                     Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
+#endif
                 }
                 catch (Exception ex)
                 {
@@ -472,8 +520,10 @@ namespace XenoPreview
                 finally
                 {
                     // 1.4: Logic moved to button handlers.
-                // 1.5+: Needed for other pre-rendering adjustments.
-                RestorePawnAfterPortrait(pawn);
+                    // 1.5+: Needed for other pre-rendering adjustments.
+#if V1_5U
+                    RestorePawnAfterPortrait(pawn);
+#endif
                 }
             }
             else
@@ -490,7 +540,7 @@ namespace XenoPreview
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
         }
-        #endregion
+#endregion
 
         #region Pawn generation / updates
         private Dictionary<Pawn, List<Apparel>> originalApparel = new Dictionary<Pawn, List<Apparel>>(); // 1.5: Used by PreparePawnForPortrait/RestorePawnAfterPortrait
@@ -514,7 +564,7 @@ namespace XenoPreview
 
         // 1.4: This method is not needed as its logic is now in the button handlers.
         // 1.5+: This method might be used for other pre-rendering adjustments if needed.
-        
+#if V1_5U
         private void RestorePawnAfterPortrait(Pawn pawn)
         {
             if (originalApparel.TryGetValue(pawn, out var apparel))
@@ -530,6 +580,7 @@ namespace XenoPreview
                 originalTattoos.Remove(pawn);
             }
         }
+#endif
         
         private List<GeneDef> TryGetCurrentGenes(out int count)
         {
@@ -538,13 +589,13 @@ namespace XenoPreview
             try
             {
                 // "selectedGenes" is from Dialog_CreateXenotype
-                if (xenotypeDialog != null)
-                    genes = Traverse.Create(xenotypeDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
+                if (xenoDialog is Dialog_CreateXenotype)
+                    genes = Traverse.Create(xenoDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
                 // "selectedGenepacks" is from Dialog_CreateXenogerm
-                else if (xenogermDialog != null)
+                else if (xenoDialog is Dialog_CreateXenogerm)
                 {
                     genes = new List<GeneDef>();
-                    var packs = Traverse.Create(xenogermDialog).Field("selectedGenepacks").GetValue<List<Genepack>>();
+                    var packs = Traverse.Create(xenoDialog).Field("selectedGenepacks").GetValue<List<Genepack>>();
                     if (packs != null)
                         foreach (var gp in packs)
                             if (gp?.GeneSet?.GenesListForReading != null)
@@ -682,6 +733,6 @@ namespace XenoPreview
             if (!femaleLocked) DestroyPawn(ref femalePawn);
             if (!maleLocked) DestroyPawn(ref malePawn);
         }
-        #endregion
+#endregion
     }
 }

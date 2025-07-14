@@ -89,6 +89,7 @@ namespace XenoPreview
             doCloseX = false;
             layer = WindowLayer.Super;
             soundAppear = soundClose = null;
+            forcePause = true;
         }
         #endregion
 

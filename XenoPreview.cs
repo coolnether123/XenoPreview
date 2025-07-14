@@ -149,7 +149,5 @@ namespace XenoPreview
                 Log.Error("[XenoPreview] Error in Close_Postfix: " + ex.ToString());
             }
         }
-
-
     }
 }

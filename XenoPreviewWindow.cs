@@ -363,140 +363,141 @@ namespace XenoPreview
                 if (Widgets.ButtonText(femTattoos, femaleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     femaleShowTattoos = !femaleShowTattoos;
-                    PortraitsCache.SetDirty(femalePawn);
-#if V1_5U
-
-                    femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-
-                    // 1.4: Tattoo manipulation for immediate update
-                    if (femalePawn != null && femalePawn.style != null)
+                    if (femalePawn != null)
                     {
-                        if (!femaleShowTattoos) // Hiding tattoos
-                        {
-                            // 1.4: Store and clear tattoos
-                            originalTattoos[femalePawn] = (femalePawn.style.FaceTattoo, femalePawn.style.BodyTattoo);
-                            if (femalePawn.style.FaceTattoo != null) femalePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
-                            if (femalePawn.style.BodyTattoo != null) femalePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
-                        }
-                        else // Showing tattoos
-                        {
-                            // 1.4: Restore tattoos
-                            if (originalTattoos.TryGetValue(femalePawn, out var tattoos))
-                            {
-                                femalePawn.style.FaceTattoo = tattoos.face;
-                                femalePawn.style.BodyTattoo = tattoos.body;
-                                originalTattoos.Remove(femalePawn);
-                            }
-                        }
-                        femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
+                        femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                // 1.4: Tattoo manipulation for immediate update
+                if (femalePawn.style != null)
+                {
+                    if (!femaleShowTattoos) // Hiding tattoos
+                    {
+                        // 1.4: Store and clear tattoos
+                        originalTattoos[femalePawn] = (femalePawn.style.FaceTattoo, femalePawn.style.BodyTattoo);
+                        if (femalePawn.style.FaceTattoo != null) femalePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                        if (femalePawn.style.BodyTattoo != null) femalePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
                     }
+                    else // Showing tattoos
+                    {
+                        // 1.4: Restore tattoos
+                        if (originalTattoos.TryGetValue(femalePawn, out var tattoos))
+                        {
+                            femalePawn.style.FaceTattoo = tattoos.face;
+                            femalePawn.style.BodyTattoo = tattoos.body;
+                            originalTattoos.Remove(femalePawn);
+                        }
+                    }
+                    femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                }
 #endif
+                    }
                 }
                 if (Widgets.ButtonText(maleTattoos, maleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     maleShowTattoos = !maleShowTattoos;
-                    PortraitsCache.SetDirty(malePawn);
-#if V1_5U
-
-                    malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-                    //1.4: Tattoo manipulation for immediate update
-                    if (malePawn != null && malePawn.style != null)
+                    if (malePawn != null)
                     {
-                        if (!maleShowTattoos) // Hiding tattoos
-                        {
-                            // 1.4: Store and clear tattoos
-                            originalTattoos[malePawn] = (malePawn.style.FaceTattoo, malePawn.style.BodyTattoo);
-                            if (malePawn.style.FaceTattoo != null) malePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
-                            if (malePawn.style.BodyTattoo != null) malePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
-                        }
-                        else // Showing tattoos
-                        {
-                            // 1.4: Restore tattoos
-                            if (originalTattoos.TryGetValue(malePawn, out var tattoos))
-                            {
-                                malePawn.style.FaceTattoo = tattoos.face;
-                                malePawn.style.BodyTattoo = tattoos.body;
-                                originalTattoos.Remove(malePawn);
-                            }
-                        }
-                        malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        PortraitsCache.SetDirty(malePawn);
+#if V1_5U
+                        malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                // 1.4: Tattoo manipulation for immediate update
+                if (malePawn.style != null)
+                {
+                    if (!maleShowTattoos) // Hiding tattoos
+                    {
+                        // 1.4: Store and clear tattoos
+                        originalTattoos[malePawn] = (malePawn.style.FaceTattoo, malePawn.style.BodyTattoo);
+                        if (malePawn.style.FaceTattoo != null) malePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                        if (malePawn.style.BodyTattoo != null) malePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
                     }
-
+                    else // Showing tattoos
+                    {
+                        // 1.4: Restore tattoos
+                        if (originalTattoos.TryGetValue(malePawn, out var tattoos))
+                        {
+                            malePawn.style.FaceTattoo = tattoos.face;
+                            malePawn.style.BodyTattoo = tattoos.body;
+                            originalTattoos.Remove(malePawn);
+                        }
+                    }
+                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                }
 #endif
-
+                    }
                 }
             }
         }
 
         private void DoClothesButtons(Rect femClothes, Rect maleClothes)
         {
+            // Handle female pawn clothes button
             if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
                 femaleShowClothes = !femaleShowClothes;
-                PortraitsCache.SetDirty(femalePawn);
-#if V1_5U
-                femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-                // 1.4: Apparel manipulation for immediate update
-                if (femalePawn != null)
+                if (femalePawn != null) // Add null check
                 {
-                    if (!femaleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
-                            femalePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(femalePawn, out var apparel))
-                        {
-                            femalePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(femalePawn);
-                        }
-                    }
-                    femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                    PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
+                    femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+            // 1.4: Apparel manipulation for immediate update
+            if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
+            {
+                // 1.4: Store and clear apparel
+                if (!femaleShowClothes)
+                {
+                    originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
+                    femalePawn.apparel.WornApparel.Clear();
                 }
-#endif
-
+                else // Showing clothes
+                {
+                    // 1.4: Restore apparel
+                    if (originalApparel.TryGetValue(femalePawn, out var apparel))
+                    {
+                        femalePawn.apparel.WornApparel.AddRange(apparel);
+                        originalApparel.Remove(femalePawn);
+                    }
+                }
+                femalePawn.Drawer.renderer.graphics.ResolveAllGraphics();
             }
+#endif
+                }
+            }
+            // Handle male pawn clothes button
             if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
                 maleShowClothes = !maleShowClothes;
-                PortraitsCache.SetDirty(malePawn);
-#if V1_5U
-
-                malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-#elif V1_4
-                //1.4: Apparel manipulation for immediate update
-                if (malePawn != null)
+                if (malePawn != null) // Add null check
                 {
-                    if (!maleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
-                            malePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(malePawn, out var apparel))
-                        {
-                            malePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(malePawn);
-                        }
-                    }
-                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                    PortraitsCache.SetDirty(malePawn);
+#if V1_5U
+                    malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+            //1.4: Apparel manipulation for immediate update
+            if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
+            {
+                if (!maleShowClothes) // Hiding clothes
+                {
+                    // 1.4: Store and clear apparel
+                    originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
+                    malePawn.apparel.WornApparel.Clear();
                 }
+                else // Showing clothes
+                {
+                    // 1.4: Restore apparel
+                    if (originalApparel.TryGetValue(malePawn, out var apparel))
+                    {
+                        malePawn.apparel.WornApparel.AddRange(apparel);
+                        originalApparel.Remove(malePawn);
+                    }
+                }
+                malePawn.Drawer.renderer.graphics.ResolveAllGraphics();
+            }
 #endif
+                }
             }
         }
 

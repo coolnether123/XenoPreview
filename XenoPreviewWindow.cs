@@ -3,6 +3,7 @@ using RimWorld;
 using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using Verse;
@@ -13,8 +14,8 @@ namespace XenoPreview
     public class XenoPreviewWindow : Window
     {
         #region Fields and constants
-        private Dialog_CreateXenotype xenotypeDialog;
-        private Dialog_CreateXenogerm xenogermDialog;
+        private GeneCreationDialogBase xenoDialog;
+        //private Dialog_CreateXenogerm xenogermDialog;
 
         private Pawn femalePawn;
         private Pawn malePawn;
@@ -38,12 +39,14 @@ namespace XenoPreview
         private int updateTicks;
         private const int UPDATE_INTERVAL = 15;
 
-        private bool isMinimized = false;
+        private static Vector2 storedPosition = Vector2.zero; // Used to store the last position of the window
+
+        private static bool isMinimized = false;
         private static Vector2 WindowSize
         {
             get
             {
-                float height = 480f; 
+                float height = 480f;
                 // If Ideology is not active, reduce height by the size of the tattoo buttons and the gap
                 if (!ModsConfig.IdeologyActive)
                 {
@@ -53,7 +56,12 @@ namespace XenoPreview
             }
         }
 
-        // Button size constants - both buttons use these exact same dimensions
+        // Clothing and tattoo visibility
+        private bool showClothing = true;
+        private bool showTattoos = true;
+        private static bool IdeologyActive => ModsConfig.IdeologyActive;
+
+        // Button size constants
         private const float BUTTON_WIDTH = 120f;
         private const float BUTTON_HEIGHT = 30f;
         private const float PORTRAIT_HEIGHT = 260f; // Fixed height for pawn portraits
@@ -70,64 +78,67 @@ namespace XenoPreview
         #region Constructors
         public override Vector2 InitialSize => isMinimized ? MinimizedSize : WindowSize;
 
-        public XenoPreviewWindow() : base() // Add null if 1.5 > but remove if for 1.4
+        public XenoPreviewWindow() : base() 
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
-            draggable = false;
+            draggable = true;
             resizeable = false;
             drawShadow = true;
             forcePause = preventCameraMotion = false;
             doCloseX = false;
             layer = WindowLayer.Super;
             soundAppear = soundClose = null;
+            forcePause = true;
         }
         #endregion
 
         #region Dialog plumbing
-        public void SetDialog(Dialog_CreateXenotype dlg)
+
+        public void SetDialog(Window dialog)
         {
-            xenotypeDialog = dlg;
-            xenogermDialog = null;
-            UpdatePosition();
+            if (dialog is GeneCreationDialogBase)
+            {
+                xenoDialog = dialog as GeneCreationDialogBase;
+            }
+            else
+            {
+                Log.Error("[XenoPreview] Found dialog is not of correct type: " + dialog.GetType().ToString() + ". (Must be " + typeof(Dialog_CreateXenotype).ToString() + " or " + typeof(Dialog_CreateXenogerm));
+            }
         }
 
-        public void SetXenogermDialog(Dialog_CreateXenogerm dlg)
+        public void UpdatePosition(Vector2? overridePosition = null)
         {
-            xenogermDialog = dlg;
-            xenotypeDialog = null;
-            UpdatePosition();
-        }
+            if (overridePosition.HasValue && (xenoDialog == null))
+            {
+                storedPosition = overridePosition.Value;
+            }
 
-        public void UpdatePosition()
-        {
-            float x = 0f, y = 0f;
-            bool ok = false;
+            float x = storedPosition.x, y = storedPosition.y;
+
 
             Vector2 currentSize = isMinimized ? MinimizedSize : WindowSize;
-
-            if (xenotypeDialog != null && xenotypeDialog.IsOpen)
+            if (storedPosition == Vector2.zero || !UI.GUIToScreenRect(new Rect(Vector2.zero, new Vector2(UI.screenWidth, UI.screenHeight))).Contains(UI.GUIToScreenPoint(storedPosition)))
             {
-                x = xenotypeDialog.windowRect.xMax + 10f;
-                y = xenotypeDialog.windowRect.yMin;
-                ok = true;
+                if (xenoDialog != null)
+                {
+                    x = xenoDialog.windowRect.xMax + 10f;
+                    y = xenoDialog.windowRect.yMin;
+                }
+                else
+                {
+                    Log.Error("[XenoPreview] No active dialog found to position the preview window.");
+                }
             }
-            else if (xenogermDialog != null && xenogermDialog.IsOpen)
-            {
-                x = xenogermDialog.windowRect.xMax + 10f;
-                y = xenogermDialog.windowRect.yMin;
-                ok = true;
-            }
-
-            if (!ok) return;
 
             windowRect = new Rect(
-                Mathf.Min(x, UI.screenWidth - currentSize.x),
-                Mathf.Clamp(y, 0f, UI.screenHeight - currentSize.y),
+                x,
+                y,
                 currentSize.x,
                 currentSize.y
             );
         }
+
 
         private bool CanGeneratePawns()
         {
@@ -138,8 +149,8 @@ namespace XenoPreview
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
-             && (xenogermDialog == null || !xenogermDialog.IsOpen))
+            Verse.Text.Font = GameFont.Small;
+            if ((xenoDialog == null || !xenoDialog.IsOpen))
             {
                 Close(false);
                 return;
@@ -181,25 +192,28 @@ namespace XenoPreview
         private void DrawMinimizedWindow(Rect inRect)
         {
             // Make the button fill most of the window but maintain same size as hide button
-            Rect buttonRect = new Rect(
+            Rect showButtonRect = new Rect(
                 (inRect.width - BUTTON_WIDTH) / 2f,
                 (inRect.height - BUTTON_HEIGHT) / 2f,
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT
             );
 
-            // Draw background matching the hide button style
             GUI.color = new Color(0.3f, 0.5f, 0.7f, 0.9f);
-            GUI.DrawTexture(buttonRect, BaseContent.WhiteTex);
+            GUI.DrawTexture(showButtonRect, BaseContent.WhiteTex);
             GUI.color = Color.white;
-            Widgets.DrawHighlight(buttonRect);
+            Widgets.DrawHighlight(showButtonRect);
 
             Text.Anchor = TextAnchor.MiddleCenter;
             Text.Font = GameFont.Small;
 
-            if (Widgets.ButtonText(buttonRect, "Show Preview", true, true, Color.white))
+            if (Widgets.ButtonText(showButtonRect, "Show Preview", true, true, Color.white))
             {
                 isMinimized = false;
+                if (storedPosition != windowRect.position)
+                {
+                    storedPosition = windowRect.position;
+                }
                 UpdatePosition();
             }
             Text.Anchor = TextAnchor.UpperLeft;
@@ -209,8 +223,7 @@ namespace XenoPreview
         {
             base.WindowUpdate();
 
-            if ((xenotypeDialog == null || !xenotypeDialog.IsOpen)
-             && (xenogermDialog != null && !xenogermDialog.IsOpen)
+            if ((xenoDialog == null || !xenoDialog.IsOpen)
              && IsOpen)
             {
                 Close(false);
@@ -234,6 +247,11 @@ namespace XenoPreview
             Cleanup();
             if (XenoPreview.PreviewWindowInstance == this)
                 XenoPreview.PreviewWindowInstance = null;
+            if (storedPosition != windowRect.position)
+            {
+                storedPosition = windowRect.position;
+            }
+
         }
         #endregion
 
@@ -245,28 +263,45 @@ namespace XenoPreview
             const float rotateButtonW = 30f;
             const float gap = 5f;
 
-            // Hide button in top left corner - EXACT same size as Show Preview button
-            Rect hideButton = new Rect(5f, 5f, BUTTON_WIDTH, BUTTON_HEIGHT);
+            float currentY = 5f;
+
+            // Hide button in top left corner
+            Rect hideButton = new Rect(5f, currentY, BUTTON_WIDTH, BUTTON_HEIGHT);
             if (Widgets.ButtonText(hideButton, "Hide Preview"))
             {
                 isMinimized = true;
+                if (storedPosition != windowRect.position)
+                {
+                    storedPosition = windowRect.position;
+                }
                 UpdatePosition();
             }
+            currentY += BUTTON_HEIGHT + gap;
 
             // Adjust portrait area to account for hide button
             float portraitStartY = hideButton.yMax + gap;
             float portraitH = PORTRAIT_HEIGHT;
             float portraitW = (inRect.width - gap) / 2f;
 
-            Rect femRect = new Rect(0, portraitStartY, portraitW, portraitH);
-            Rect maleRect = new Rect(portraitW + gap, portraitStartY, portraitW, portraitH);
+            Rect femRect = new Rect(0, currentY, portraitW, portraitH);
+            Rect maleRect = new Rect(portraitW + gap, currentY, portraitW, portraitH);
 
             DrawPawnPortrait(femalePawn, femRect, femaleRotation);
             DrawPawnPortrait(malePawn, maleRect, maleRotation);
 
             // Rotation buttons
-            Rect femRotateRect = new Rect(femRect.x + femRect.width - rotateButtonW, femRect.y + 5f, rotateButtonW, buttonH);
-            Rect maleRotateRect = new Rect(maleRect.x + maleRect.width - rotateButtonW, maleRect.y + 5f, rotateButtonW, buttonH);
+            Rect femRotateRect = new Rect(
+                femRect.x + femRect.width - rotateButtonW,
+                femRect.y + 5f,
+                rotateButtonW,
+                buttonH
+            );
+            Rect maleRotateRect = new Rect(
+                maleRect.x + maleRect.width - rotateButtonW,
+                maleRect.y + 5f,
+                rotateButtonW,
+                buttonH
+            );
 
             if (Widgets.ButtonText(femRotateRect, "↻"))
             {
@@ -291,7 +326,7 @@ namespace XenoPreview
             Widgets.Label(maleLabel, "Male");
             Text.Anchor = TextAnchor.UpperLeft;
 
-            float currentY = reroll.yMax + gap;
+            currentY = reroll.yMax + gap;
 
             // Lock buttons
             Rect femLock = new Rect(femLabel.x, currentY, femLabel.width, buttonH);
@@ -311,71 +346,16 @@ namespace XenoPreview
             // Show/Hide Clothes buttons
             Rect femClothes = new Rect(femLock.x, currentY, femLock.width, buttonH);
             Rect maleClothes = new Rect(maleLock.x, currentY, maleLock.width, buttonH);
-
-            if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
-            {
-                femaleShowClothes = !femaleShowClothes;
-                PortraitsCache.SetDirty(femalePawn);
-                femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                /* 1.4: Apparel manipulation for immediate update
-                if (femalePawn != null)
-                {
-                    if (!femaleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
-                            femalePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(femalePawn, out var apparel))
-                        {
-                            femalePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(femalePawn);
-                        }
-                    }
-                    // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
-                }
-                */
-            }
-            if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
-            {
-                maleShowClothes = !maleShowClothes;
-                PortraitsCache.SetDirty(malePawn);
-                malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                /* 1.4: Apparel manipulation for immediate update
-                if (malePawn != null)
-                {
-                    if (!maleShowClothes) // Hiding clothes
-                    {
-                        // 1.4: Store and clear apparel
-                        if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
-                        {
-                            originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
-                            malePawn.apparel.WornApparel.Clear();
-                        }
-                    }
-                    else // Showing clothes
-                    {
-                        // 1.4: Restore apparel
-                        if (originalApparel.TryGetValue(malePawn, out var apparel))
-                        {
-                            malePawn.apparel.WornApparel.AddRange(apparel);
-                            originalApparel.Remove(malePawn);
-                        }
-                    }
-                    // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
-                }
-                */
-            }
+            DoClothesButtons(femClothes, maleClothes);
 
             currentY += buttonH + gap;
 
             // Show/Hide Tattoos buttons
+            DoTattoosButtons(buttonH, currentY, femClothes, maleClothes);
+        }
+
+        private void DoTattoosButtons(float buttonH, float currentY, Rect femClothes, Rect maleClothes)
+        {
             if (ModsConfig.IdeologyActive)
             {
                 Rect femTattoos = new Rect(femClothes.x, currentY, femClothes.width, buttonH);
@@ -384,60 +364,140 @@ namespace XenoPreview
                 if (Widgets.ButtonText(femTattoos, femaleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     femaleShowTattoos = !femaleShowTattoos;
-                    PortraitsCache.SetDirty(femalePawn);
-                    femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                    /* 1.4: Tattoo manipulation for immediate update
-                    if (femalePawn != null && femalePawn.style != null)
+                    if (femalePawn != null)
                     {
-                        if (!femaleShowTattoos) // Hiding tattoos
-                        {
-                            // 1.4: Store and clear tattoos
-                            originalTattoos[femalePawn] = (femalePawn.style.FaceTattoo, femalePawn.style.BodyTattoo);
-                            if (femalePawn.style.FaceTattoo != null) femalePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
-                            if (femalePawn.style.BodyTattoo != null) femalePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
-                        }
-                        else // Showing tattoos
-                        {
-                            // 1.4: Restore tattoos
-                            if (originalTattoos.TryGetValue(femalePawn, out var tattoos))
-                            {
-                                femalePawn.style.FaceTattoo = tattoos.face;
-                                femalePawn.style.BodyTattoo = tattoos.body;
-                                originalTattoos.Remove(femalePawn);
-                            }
-                        }
-                        // femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
+                        femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                // 1.4: Tattoo manipulation for immediate update
+                if (femalePawn.style != null)
+                {
+                    if (!femaleShowTattoos) // Hiding tattoos
+                    {
+                        // 1.4: Store and clear tattoos
+                        originalTattoos[femalePawn] = (femalePawn.style.FaceTattoo, femalePawn.style.BodyTattoo);
+                        if (femalePawn.style.FaceTattoo != null) femalePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                        if (femalePawn.style.BodyTattoo != null) femalePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
                     }
-                    */
+                    else // Showing tattoos
+                    {
+                        // 1.4: Restore tattoos
+                        if (originalTattoos.TryGetValue(femalePawn, out var tattoos))
+                        {
+                            femalePawn.style.FaceTattoo = tattoos.face;
+                            femalePawn.style.BodyTattoo = tattoos.body;
+                            originalTattoos.Remove(femalePawn);
+                        }
+                    }
+                    femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                }
+#endif
+                    }
                 }
                 if (Widgets.ButtonText(maleTattoos, maleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     maleShowTattoos = !maleShowTattoos;
-                    PortraitsCache.SetDirty(malePawn);
-                    malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
-                    /* 1.4: Tattoo manipulation for immediate update
-                    if (malePawn != null && malePawn.style != null)
+                    if (malePawn != null)
                     {
-                        if (!maleShowTattoos) // Hiding tattoos
-                        {
-                            // 1.4: Store and clear tattoos
-                            originalTattoos[malePawn] = (malePawn.style.FaceTattoo, malePawn.style.BodyTattoo);
-                            if (malePawn.style.FaceTattoo != null) malePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
-                            if (malePawn.style.BodyTattoo != null) malePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
-                        }
-                        else // Showing tattoos
-                        {
-                            // 1.4: Restore tattoos
-                            if (originalTattoos.TryGetValue(malePawn, out var tattoos))
-                            {
-                                malePawn.style.FaceTattoo = tattoos.face;
-                                malePawn.style.BodyTattoo = tattoos.body;
-                                originalTattoos.Remove(malePawn);
-                            }
-                        }
-                        // malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4 - this line is replaced by SetAllGraphicsDirty() above
+                        PortraitsCache.SetDirty(malePawn);
+#if V1_5U
+                        malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+                // 1.4: Tattoo manipulation for immediate update
+                if (malePawn.style != null)
+                {
+                    if (!maleShowTattoos) // Hiding tattoos
+                    {
+                        // 1.4: Store and clear tattoos
+                        originalTattoos[malePawn] = (malePawn.style.FaceTattoo, malePawn.style.BodyTattoo);
+                        if (malePawn.style.FaceTattoo != null) malePawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                        if (malePawn.style.BodyTattoo != null) malePawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
                     }
-                    */
+                    else // Showing tattoos
+                    {
+                        // 1.4: Restore tattoos
+                        if (originalTattoos.TryGetValue(malePawn, out var tattoos))
+                        {
+                            malePawn.style.FaceTattoo = tattoos.face;
+                            malePawn.style.BodyTattoo = tattoos.body;
+                            originalTattoos.Remove(malePawn);
+                        }
+                    }
+                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                }
+#endif
+                    }
+                }
+            }
+        }
+
+        private void DoClothesButtons(Rect femClothes, Rect maleClothes)
+        {
+            // Handle female pawn clothes button
+            if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
+            {
+                femaleShowClothes = !femaleShowClothes;
+                if (femalePawn != null) // Add null check
+                {
+                    PortraitsCache.SetDirty(femalePawn);
+#if V1_5U
+                    femalePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+            // 1.4: Apparel manipulation for immediate update
+            if (femalePawn.apparel != null && femalePawn.apparel.WornApparelCount > 0)
+            {
+                // 1.4: Store and clear apparel
+                if (!femaleShowClothes)
+                {
+                    originalApparel[femalePawn] = femalePawn.apparel.WornApparel.ToList();
+                    femalePawn.apparel.WornApparel.Clear();
+                }
+                else // Showing clothes
+                {
+                    // 1.4: Restore apparel
+                    if (originalApparel.TryGetValue(femalePawn, out var apparel))
+                    {
+                        femalePawn.apparel.WornApparel.AddRange(apparel);
+                        originalApparel.Remove(femalePawn);
+                    }
+                }
+                femalePawn.Drawer.renderer.graphics.ResolveAllGraphics();
+            }
+#endif
+                }
+            }
+            // Handle male pawn clothes button
+            if (Widgets.ButtonText(maleClothes, maleShowClothes ? "Hide Clothes" : "Show Clothes"))
+            {
+                maleShowClothes = !maleShowClothes;
+                if (malePawn != null) // Add null check
+                {
+                    PortraitsCache.SetDirty(malePawn);
+#if V1_5U
+                    malePawn.Drawer.renderer.SetAllGraphicsDirty(); // for 1.5 >
+#elif V1_4
+            //1.4: Apparel manipulation for immediate update
+            if (malePawn.apparel != null && malePawn.apparel.WornApparelCount > 0)
+            {
+                if (!maleShowClothes) // Hiding clothes
+                {
+                    // 1.4: Store and clear apparel
+                    originalApparel[malePawn] = malePawn.apparel.WornApparel.ToList();
+                    malePawn.apparel.WornApparel.Clear();
+                }
+                else // Showing clothes
+                {
+                    // 1.4: Restore apparel
+                    if (originalApparel.TryGetValue(malePawn, out var apparel))
+                    {
+                        malePawn.apparel.WornApparel.AddRange(apparel);
+                        originalApparel.Remove(malePawn);
+                    }
+                }
+                malePawn.Drawer.renderer.graphics.ResolveAllGraphics();
+            }
+#endif
                 }
             }
         }
@@ -446,7 +506,21 @@ namespace XenoPreview
         {
             if (!CanGeneratePawns())
             {
+#if V1_6U
+                Current.ProgramState = ProgramState.Entry;
+                Game.ClearCaches();
+                Current.Game = new Game();
+                Current.Game.InitData = new GameInitData();
+                Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
+                Find.Scenario.PreConfigure();
+                Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
+                Current.Game.World = WorldGenerator.GenerateWorld(0.1f, GenText.RandomSeedString(), OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.AlmostNone, LandmarkDensity.Normal);
+                Find.GameInitData.ChooseRandomStartingTile();
+                Find.GameInitData.mapSize = 250;
+                Find.Scenario.PostIdeoChosen();
+#elif V1_5D
                 Root_Play.SetupForQuickTestPlay();
+#endif
             }
 
             if (pawn != null)
@@ -460,9 +534,12 @@ namespace XenoPreview
 
                 try
                 {
-                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);  
-                    // Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
+#if V1_5D
+                    Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+#elif V1_6U
                     Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
+#endif
                 }
                 catch (Exception ex)
                 {
@@ -472,8 +549,10 @@ namespace XenoPreview
                 finally
                 {
                     // 1.4: Logic moved to button handlers.
-                // 1.5+: Needed for other pre-rendering adjustments.
-                RestorePawnAfterPortrait(pawn);
+                    // 1.5+: Needed for other pre-rendering adjustments.
+#if V1_5U
+                    RestorePawnAfterPortrait(pawn);
+#endif
                 }
             }
             else
@@ -489,6 +568,176 @@ namespace XenoPreview
             Widgets.Label(rect, msg);
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
+        }
+        #endregion
+
+        #region Clothing and Tattoo Management
+        private void UpdateClothingVisibility()
+        {
+            if (femalePawn != null)
+            {
+                ApplyClothingVisibility(femalePawn);
+            }
+            if (malePawn != null)
+            {
+                ApplyClothingVisibility(malePawn);
+            }
+        }
+
+        private void ApplyClothingVisibility(Pawn pawn)
+        {
+            if (pawn?.apparel?.WornApparel == null)
+                return;
+
+            if (!showClothing)
+            {
+                // Remove all apparel
+                var apparelList = pawn.apparel.WornApparel.ToList();
+                foreach (var apparel in apparelList)
+                {
+                    pawn.apparel.Remove(apparel);
+                }
+            }
+            else
+            {
+                // If clothing was hidden and now we want to show it, regenerate
+                if (pawn.apparel.WornApparel.Count == 0)
+                {
+                    GenerateApparelForPawn(pawn);
+                }
+            }
+
+            PortraitsCache.SetDirty(pawn);
+        }
+
+        private void UpdateTattooVisibility()
+        {
+            if (!IdeologyActive)
+                return;
+
+            if (femalePawn != null)
+            {
+                ApplyTattooVisibility(femalePawn);
+            }
+            if (malePawn != null)
+            {
+                ApplyTattooVisibility(malePawn);
+            }
+        }
+
+        private void ApplyTattooVisibility(Pawn pawn)
+        {
+            if (!IdeologyActive || pawn?.style == null)
+                return;
+
+            try
+            {
+                if (!showTattoos)
+                {
+                    // Clear tattoos
+                    pawn.style.FaceTattoo = TattooDefOf.NoTattoo_Face;
+                    pawn.style.BodyTattoo = TattooDefOf.NoTattoo_Body;
+                }
+                else
+                {
+                    // If tattoos were hidden and now we want to show them, regenerate
+                    if (
+                        pawn.style.FaceTattoo == TattooDefOf.NoTattoo_Face
+                        && pawn.style.BodyTattoo == TattooDefOf.NoTattoo_Body
+                    )
+                    {
+                        GenerateTattoosForPawn(pawn);
+                    }
+                }
+
+                PortraitsCache.SetDirty(pawn);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[XenoPreview] Error applying tattoo visibility: {ex.Message}");
+            }
+        }
+
+        private void RerollClothing()
+        {
+            if (femalePawn != null && showClothing)
+            {
+                GenerateApparelForPawn(femalePawn);
+            }
+            if (malePawn != null && showClothing)
+            {
+                GenerateApparelForPawn(malePawn);
+            }
+        }
+
+        private void RerollTattoos()
+        {
+            if (!IdeologyActive)
+                return;
+
+            if (femalePawn != null && showTattoos)
+            {
+                GenerateTattoosForPawn(femalePawn);
+            }
+            if (malePawn != null && showTattoos)
+            {
+                GenerateTattoosForPawn(malePawn);
+            }
+        }
+
+        private void GenerateApparelForPawn(Pawn pawn)
+        {
+            try
+            {
+                // Clear existing apparel
+                var existingApparel = pawn.apparel.WornApparel.ToList();
+                foreach (var apparel in existingApparel)
+                {
+                    pawn.apparel.Remove(apparel);
+                }
+
+                // Generate new apparel
+                PawnApparelGenerator.GenerateStartingApparelFor(pawn, new PawnGenerationRequest());
+
+                PortraitsCache.SetDirty(pawn);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[XenoPreview] Error generating apparel: {ex.Message}");
+            }
+        }
+
+        private void GenerateTattoosForPawn(Pawn pawn)
+        {
+            if (!IdeologyActive || pawn?.style == null)
+                return;
+
+            try
+            {
+                // Use the game's style generation system
+                var availableFaceTattoos = DefDatabase<TattooDef>
+                    .AllDefs.Where(x => x.tattooType == TattooType.Face)
+                    .ToList();
+                var availableBodyTattoos = DefDatabase<TattooDef>
+                    .AllDefs.Where(x => x.tattooType == TattooType.Body)
+                    .ToList();
+
+                if (availableFaceTattoos.Any())
+                {
+                    pawn.style.FaceTattoo = availableFaceTattoos.RandomElement();
+                }
+
+                if (availableBodyTattoos.Any())
+                {
+                    pawn.style.BodyTattoo = availableBodyTattoos.RandomElement();
+                }
+
+                PortraitsCache.SetDirty(pawn);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"[XenoPreview] Error generating tattoos: {ex.Message}");
+            }
         }
         #endregion
 
@@ -514,7 +763,7 @@ namespace XenoPreview
 
         // 1.4: This method is not needed as its logic is now in the button handlers.
         // 1.5+: This method might be used for other pre-rendering adjustments if needed.
-        
+#if V1_5U
         private void RestorePawnAfterPortrait(Pawn pawn)
         {
             if (originalApparel.TryGetValue(pawn, out var apparel))
@@ -530,7 +779,8 @@ namespace XenoPreview
                 originalTattoos.Remove(pawn);
             }
         }
-        
+#endif
+
         private List<GeneDef> TryGetCurrentGenes(out int count)
         {
             count = 0;
@@ -538,19 +788,20 @@ namespace XenoPreview
             try
             {
                 // "selectedGenes" is from Dialog_CreateXenotype
-                if (xenotypeDialog != null)
-                    genes = Traverse.Create(xenotypeDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
+                if (xenoDialog is Dialog_CreateXenotype)
+                    genes = Traverse.Create(xenoDialog).Field("selectedGenes").GetValue<List<GeneDef>>();
                 // "selectedGenepacks" is from Dialog_CreateXenogerm
-                else if (xenogermDialog != null)
+                else if (xenoDialog is Dialog_CreateXenogerm)
                 {
                     genes = new List<GeneDef>();
-                    var packs = Traverse.Create(xenogermDialog).Field("selectedGenepacks").GetValue<List<Genepack>>();
+                    var packs = Traverse.Create(xenoDialog).Field("selectedGenepacks").GetValue<List<Genepack>>();
                     if (packs != null)
                         foreach (var gp in packs)
                             if (gp?.GeneSet?.GenesListForReading != null)
                                 genes.AddRange(gp.GeneSet.GenesListForReading);
                 }
-                if (genes != null) count = genes.Count;
+                if (genes != null)
+                    count = genes.Count;
             }
             catch (Exception ex)
             {
@@ -559,7 +810,10 @@ namespace XenoPreview
             return genes;
         }
 
-        private void GenerateOrRefreshPawns(List<GeneDef> genes, bool forceNewUnlocked = false)
+        private void GenerateOrRefreshPawns(
+            List<GeneDef> genes,
+            bool forceNewUnlocked = false
+        )
         {
             if (genes == null || genes.Count == 0 || !CanGeneratePawns())
             {
@@ -575,8 +829,12 @@ namespace XenoPreview
 
             if (!femaleLocked || forceNewUnlocked)
             {
-                if (!femaleLocked) DestroyPawn(ref femalePawn);
+                if (!femaleLocked)
+                    DestroyPawn(ref femalePawn);
                 femalePawn = GeneratePawn(Gender.Female, tmpXeno);
+                ApplyClothingVisibility(femalePawn);
+                if (IdeologyActive)
+                    ApplyTattooVisibility(femalePawn);
             }
             else
             {
@@ -585,8 +843,12 @@ namespace XenoPreview
 
             if (!maleLocked || forceNewUnlocked)
             {
-                if (!maleLocked) DestroyPawn(ref malePawn);
+                if (!maleLocked)
+                    DestroyPawn(ref malePawn);
                 malePawn = GeneratePawn(Gender.Male, tmpXeno);
+                ApplyClothingVisibility(malePawn);
+                if (IdeologyActive)
+                    ApplyTattooVisibility(malePawn);
             }
             else
             {
@@ -611,7 +873,7 @@ namespace XenoPreview
                     forceNoBackstory: true,
                     forbidAnyTitle: true
                 );
-                //Log.Message("Generating Pawn");
+
                 var p = PawnGenerator.GeneratePawn(request);
                 //p.story.favoriteColor = UnityEngine.Random.ColorHSV();
                 if (ModsConfig.IdeologyActive)
@@ -626,7 +888,8 @@ namespace XenoPreview
                     maleNaturalHairColor = p.story.HairColor;
 
                 p.needs?.AllNeeds.Clear();
-                if (p.mindState != null) p.mindState.Active = false;
+                if (p.mindState != null)
+                    p.mindState.Active = false;
                 PortraitsCache.SetDirty(p);
                 return p;
             }
@@ -639,12 +902,13 @@ namespace XenoPreview
 
         private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> selectedGenes)
         {
-            if (pawn == null || selectedGenes == null) return;
+            if (pawn == null || selectedGenes == null)
+                return;
 
             // remove deselected
             var toRemove = pawn.genes.GenesListForReading
-                                  .Where(g => !selectedGenes.Contains(g.def))
-                                  .ToList();
+                .Where(g => !selectedGenes.Contains(g.def))
+                .ToList();
             foreach (var g in toRemove)
                 pawn.genes.RemoveGene(g);
 
@@ -656,9 +920,10 @@ namespace XenoPreview
             // restore hair color if needed
             bool hairGene = selectedGenes.Any(d => d.hairColorOverride.HasValue);
             if (!hairGene)
-                pawn.story.HairColor = pawn.gender == Gender.Female
-                    ? femaleNaturalHairColor
-                    : maleNaturalHairColor;
+                pawn.story.HairColor =
+                    pawn.gender == Gender.Female
+                        ? femaleNaturalHairColor
+                        : maleNaturalHairColor;
 
             PortraitsCache.SetDirty(pawn);
         }
@@ -679,8 +944,10 @@ namespace XenoPreview
 
         private void Cleanup()
         {
-            if (!femaleLocked) DestroyPawn(ref femalePawn);
-            if (!maleLocked) DestroyPawn(ref malePawn);
+            if (!femaleLocked)
+                DestroyPawn(ref femalePawn);
+            if (!maleLocked)
+                DestroyPawn(ref malePawn);
         }
         #endregion
     }

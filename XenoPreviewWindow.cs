@@ -41,7 +41,7 @@ namespace XenoPreview
 
         private static Vector2 storedPosition = Vector2.zero; // Used to store the last position of the window
 
-        private bool isMinimized = false;
+        private static bool isMinimized = false;
         private static Vector2 WindowSize
         {
             get
@@ -78,7 +78,7 @@ namespace XenoPreview
         #region Constructors
         public override Vector2 InitialSize => isMinimized ? MinimizedSize : WindowSize;
 
-        public XenoPreviewWindow() : base() // Add null if 1.5 > but remove if for 1.4
+        public XenoPreviewWindow() : base() 
         {
             closeOnCancel = closeOnAccept = closeOnClickedOutside = false;
             absorbInputAroundWindow = false;
@@ -149,7 +149,7 @@ namespace XenoPreview
         #region RimWorld callbacks
         public override void DoWindowContents(Rect inRect)
         {
-
+            Verse.Text.Font = GameFont.Small;
             if ((xenoDialog == null || !xenoDialog.IsOpen))
             {
                 Close(false);

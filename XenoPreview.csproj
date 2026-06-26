@@ -81,7 +81,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.4.3901" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.4.3901" Condition="'$(Configuration)' == '1.4' Or '$(Configuration)' == 'Debug' Or '$(Configuration)' == 'Release'" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.5.4409" Condition="'$(Configuration)' == '1.5'" />
+    <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.4850" Condition="'$(Configuration)' == '1.6'" />
     <PackageReference Include="Lib.Harmony">
       <Version>2.3.6</Version>
     </PackageReference>

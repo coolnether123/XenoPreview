@@ -1,13 +1,11 @@
 ﻿using HarmonyLib;
 using RimWorld;
-using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using Verse;
-using Verse.Noise;
 
 namespace XenoPreview
 {
@@ -35,7 +33,6 @@ namespace XenoPreview
 
         private int lastGeneCount = -1;
         private bool needsPawnUpdate = true;
-        private bool hasLoggedPreviewGameInitializationFailure;
         private bool pawnGenerationFailedForCurrentGenes;
         private bool hasLoggedPawnGenerationFailure;
 
@@ -142,63 +139,6 @@ namespace XenoPreview
             );
         }
 
-
-        private bool CanGeneratePawns()
-        {
-            return Current.Game != null && Current.Game.World != null;
-        }
-
-        private bool TryEnsurePawnGenerationContext()
-        {
-            if (CanGeneratePawns())
-            {
-                hasLoggedPreviewGameInitializationFailure = false;
-                return true;
-            }
-
-            try
-            {
-#if V1_6U
-                Current.ProgramState = ProgramState.Entry;
-                Game.ClearCaches();
-                Current.Game = new Game();
-                Current.Game.InitData = new GameInitData();
-                Current.Game.Scenario = ScenarioDefOf.Crashlanded.scenario;
-                Find.Scenario.PreConfigure();
-                Current.Game.storyteller = new Storyteller(StorytellerDefOf.Cassandra, DifficultyDefOf.Rough);
-                Current.Game.World = WorldGenerator.GenerateWorld(0.1f, GenText.RandomSeedString(), OverallRainfall.Normal, OverallTemperature.Normal, OverallPopulation.AlmostNone, LandmarkDensity.Normal);
-                Find.GameInitData.ChooseRandomStartingTile();
-                Find.GameInitData.mapSize = 250;
-                Find.Scenario.PostIdeoChosen();
-#elif V1_5D
-                Root_Play.SetupForQuickTestPlay();
-#endif
-            }
-            catch (Exception ex)
-            {
-                if (!hasLoggedPreviewGameInitializationFailure)
-                {
-                    Log.Warning("[XenoPreview] Could not initialize preview pawn context. Portrait preview will be skipped for now. " + ex);
-                    hasLoggedPreviewGameInitializationFailure = true;
-                }
-
-                return false;
-            }
-
-            if (!CanGeneratePawns())
-            {
-                if (!hasLoggedPreviewGameInitializationFailure)
-                {
-                    Log.Warning("[XenoPreview] Preview pawn context initialization completed without a usable game world.");
-                    hasLoggedPreviewGameInitializationFailure = true;
-                }
-
-                return false;
-            }
-
-            hasLoggedPreviewGameInitializationFailure = false;
-            return true;
-        }
         #endregion
 
         #region RimWorld callbacks
@@ -237,7 +177,7 @@ namespace XenoPreview
                 lastGeneCount = count;
             }
 
-            if (needsPawnUpdate && CanGeneratePawns() && !pawnGenerationFailedForCurrentGenes)
+            if (needsPawnUpdate && !pawnGenerationFailedForCurrentGenes)
             {
                 GenerateOrRefreshPawns(currentGenes);
                 needsPawnUpdate = false;
@@ -561,47 +501,40 @@ namespace XenoPreview
 
         private void DrawPawnPortrait(Pawn pawn, Rect rect, Rot4 rotation)
         {
-            if (!TryEnsurePawnGenerationContext())
+            if (pawn == null)
             {
-                DrawPlaceholder(rect, "Preview unavailable");
+                DrawPlaceholder(rect, "Add genes to see preview");
                 return;
             }
 
-            if (pawn != null)
+            bool showClothes = pawn.gender == Gender.Female ? femaleShowClothes : maleShowClothes;
+            bool showTattoos = pawn.gender == Gender.Female ? femaleShowTattoos : maleShowTattoos;
+
+            try
             {
-                bool showClothes = pawn.gender == Gender.Female ? femaleShowClothes : maleShowClothes;
-                bool showTattoos = pawn.gender == Gender.Female ? femaleShowTattoos : maleShowTattoos;
+                // 1.4: Logic moved to button handlers.
+                // 1.5+: Needed for other pre-rendering adjustments.
+                PreparePawnForPortrait(pawn, showClothes, showTattoos);
 
-                try
-                {
-                    // 1.4: Logic moved to button handlers.
-                    // 1.5+: Needed for other pre-rendering adjustments.
-                    PreparePawnForPortrait(pawn, showClothes, showTattoos);
-
-                    var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
+                var tex = PortraitsCache.Get(pawn, rect.size, rotation, Vector3.zero);
 #if V1_5D
-                    Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
+                Widgets.DrawTextureFitted(rect, tex, 1f); // for 1.5 and under
 #elif V1_6U
-                    Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
+                Widgets.DrawTextureFitted(rect, (Texture)tex, 1f, new Vector2(tex.width, tex.height), new Rect(0f, 0f, 1f, 1f), angle: 0f, mat: null, alpha: 1f); // for 1.6
 #endif
-                }
-                catch (Exception ex)
-                {
-                    Log.Error($"[XenoPreview] Portrait draw error: {ex}");
-                    DrawPlaceholder(rect, "Portrait error");
-                }
-                finally
-                {
-                    // 1.4: Logic moved to button handlers.
-                    // 1.5+: Needed for other pre-rendering adjustments.
-#if V1_5U
-                    RestorePawnAfterPortrait(pawn);
-#endif
-                }
             }
-            else
+            catch (Exception ex)
             {
-                DrawPlaceholder(rect, "Add genes to see preview");
+                Log.Error($"[XenoPreview] Portrait draw error: {ex}");
+                DrawPlaceholder(rect, "Portrait error");
+            }
+            finally
+            {
+                // 1.4: Logic moved to button handlers.
+                // 1.5+: Needed for other pre-rendering adjustments.
+#if V1_5U
+                RestorePawnAfterPortrait(pawn);
+#endif
             }
         }
 
@@ -859,23 +792,17 @@ namespace XenoPreview
             bool forceNewUnlocked = false
         )
         {
-            if (genes == null || genes.Count == 0 || !CanGeneratePawns())
+            if (genes == null)
             {
                 Cleanup();
                 return;
             }
 
-            var tmpXeno = new CustomXenotype
-            {
-                genes = new List<GeneDef>(genes),
-                name = "TempPreviewXenotype"
-            };
-
             if (!femaleLocked || forceNewUnlocked)
             {
                 if (!femaleLocked)
                     DestroyPawn(ref femalePawn);
-                femalePawn = GeneratePawn(Gender.Female, tmpXeno);
+                femalePawn = GeneratePawn(Gender.Female, genes);
                 if (femalePawn == null)
                 {
                     pawnGenerationFailedForCurrentGenes = true;
@@ -896,7 +823,7 @@ namespace XenoPreview
             {
                 if (!maleLocked)
                     DestroyPawn(ref malePawn);
-                malePawn = GeneratePawn(Gender.Male, tmpXeno);
+                malePawn = GeneratePawn(Gender.Male, genes);
                 if (malePawn == null)
                 {
                     pawnGenerationFailedForCurrentGenes = true;
@@ -913,36 +840,39 @@ namespace XenoPreview
             }
         }
 
-        private Pawn GeneratePawn(Gender gender, CustomXenotype xeno)
+        private Pawn GeneratePawn(Gender gender, List<GeneDef> selectedGenes)
         {
             try
             {
-                var request = new PawnGenerationRequest(
-                    PawnKindDefOf.Colonist,
-                    forceGenerateNewPawn: true,
-                    canGeneratePawnRelations: false,
-                    colonistRelationChanceFactor: 0f,
-                    fixedGender: gender,
-                    fixedBiologicalAge: 25f,
-                    fixedChronologicalAge: 25f,
-                    forcedCustomXenotype: xeno,
-                    forceNoIdeo: true,
-                    forceNoBackstory: true,
-                    forbidAnyTitle: true
-                );
+                var p = (Pawn)ThingMaker.MakeThing(ThingDefOf.Human);
+                p.kindDef = PawnKindDefOf.Colonist;
+                p.gender = gender;
+                PawnComponentsUtility.CreateInitialComponents(p);
+                p.Name = new NameTriple("Preview", "Preview", "Pawn");
+                p.ageTracker.AgeBiologicalTicks = 25L * 3600000L;
+                p.ageTracker.AgeChronologicalTicks = 25L * 3600000L;
 
-                var p = PawnGenerator.GeneratePawn(request);
-                //p.story.favoriteColor = UnityEngine.Random.ColorHSV();
+                if (ModsConfig.BiotechActive)
+                    p.genes.SetXenotype(XenotypeDefOf.Baseliner);
+
+                p.story.bodyType = gender == Gender.Female ? BodyTypeDefOf.Female : BodyTypeDefOf.Male;
+                p.story.TryGetRandomHeadFromSet(DefDatabase<HeadTypeDef>.AllDefs.Where(x => x.randomChosen));
+                p.story.hairDef = PawnStyleItemChooser.RandomHairFor(p);
+                p.story.HairColor = PawnHairColors.RandomHairColor(p, p.story.SkinColorBase, p.ageTracker.AgeBiologicalYears);
+                p.style.beardDef = BeardDefOf.NoBeard;
+
                 if (ModsConfig.IdeologyActive)
                 {
                     p.style.FaceTattoo = DefDatabase<TattooDef>.AllDefsListForReading.Where(x => x.tattooType == TattooType.Face).RandomElement();
                     p.style.BodyTattoo = DefDatabase<TattooDef>.AllDefsListForReading.Where(x => x.tattooType == TattooType.Body).RandomElement();
                 }
-                //Log.Message("Finished Generating Pawn");
+
                 if (gender == Gender.Female)
                     femaleNaturalHairColor = p.story.HairColor;
                 else
                     maleNaturalHairColor = p.story.HairColor;
+
+                UpdatePreviewPawnGenes(p, selectedGenes);
 
                 p.needs?.AllNeeds.Clear();
                 if (p.mindState != null)
@@ -964,7 +894,7 @@ namespace XenoPreview
 
         private void UpdatePreviewPawnGenes(Pawn pawn, List<GeneDef> selectedGenes)
         {
-            if (pawn == null || selectedGenes == null)
+            if (pawn == null || pawn.genes == null || selectedGenes == null)
                 return;
 
             // remove deselected

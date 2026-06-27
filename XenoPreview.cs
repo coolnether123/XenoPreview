@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
@@ -37,6 +37,13 @@ namespace XenoPreview
                     prefix: AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "GenerateXenotypeNameFromGenes_Prefix")))
                     appliedPatches++;
 
+                if (TryPatch(
+                    harmony,
+                    "GeneCreationDialogBase.DoWindowContents",
+                    AccessTools.Method(typeof(GeneCreationDialogBase), "DoWindowContents", new[] { typeof(Rect) }),
+                    transpiler: AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "DoWindowContents_Transpiler")))
+                    appliedPatches++;
+
                 // Open the XenoPreview window when the Xenotype Creator or Gene Assembler is opened
                 if (TryPatch(
                     harmony,
@@ -45,7 +52,7 @@ namespace XenoPreview
                     postfix: AccessTools.Method(typeof(Dialog_CreateXenotype_Patches), "PreOpen_Prefix")))
                     appliedPatches++;
 
-                Log.Message("[XenoPreview] Harmony patches applied. Applied " + appliedPatches + "/3 patches.");
+                Log.Message("[XenoPreview] Harmony patches applied. Applied " + appliedPatches + "/4 patches.");
             }
             catch (Exception ex)
             {
@@ -61,7 +68,8 @@ namespace XenoPreview
             string patchName,
             MethodInfo original,
             MethodInfo prefix = null,
-            MethodInfo postfix = null)
+            MethodInfo postfix = null,
+            MethodInfo transpiler = null)
         {
             if (original == null)
             {
@@ -69,7 +77,7 @@ namespace XenoPreview
                 return false;
             }
 
-            if (prefix == null && postfix == null)
+            if (prefix == null && postfix == null && transpiler == null)
             {
                 Log.Error("[XenoPreview] Failed to find patch method for " + patchName);
                 return false;
@@ -80,7 +88,8 @@ namespace XenoPreview
                 harmony.Patch(
                     original,
                     prefix: prefix == null ? null : new HarmonyMethod(prefix),
-                    postfix: postfix == null ? null : new HarmonyMethod(postfix));
+                    postfix: postfix == null ? null : new HarmonyMethod(postfix),
+                    transpiler: transpiler == null ? null : new HarmonyMethod(transpiler));
                 return true;
             }
             catch (Exception ex)
@@ -249,19 +258,13 @@ namespace XenoPreview
         {
             try
             {
-                if (!IsExplicitNameRandomizationCall())
+                if (TryGetCurrentDialogXenotypeName(out string currentName))
                 {
-                    if (TryGetCurrentDialogXenotypeName(out string currentName))
-                    {
-                        __result = currentName;
-                        return false;
-                    }
-
-                    return true;
+                    __result = currentName;
+                    return false;
                 }
 
-                __result = GenerateUniqueXenotypeNameFromGenes(genes);
-                return false;
+                return true;
             }
             catch (Exception ex)
             {
@@ -271,26 +274,32 @@ namespace XenoPreview
             }
         }
 
-        private static bool IsExplicitNameRandomizationCall()
+        public static IEnumerable<CodeInstruction> DoWindowContents_Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            StackTrace stackTrace = new StackTrace();
-            for (int i = 0; i < stackTrace.FrameCount; i++)
+            MethodInfo vanillaGenerator = AccessTools.Method(
+                typeof(RimWorld.GeneUtility),
+                "GenerateXenotypeNameFromGenes",
+                new[] { typeof(List<GeneDef>) });
+            MethodInfo explicitGenerator = AccessTools.Method(
+                typeof(Dialog_CreateXenotype_Patches),
+                "GenerateExplicitXenotypeNameFromGenes",
+                new[] { typeof(List<GeneDef>) });
+
+            foreach (CodeInstruction instruction in instructions)
             {
-                MethodBase method = stackTrace.GetFrame(i).GetMethod();
-                if (method == null)
+                if (instruction.Calls(vanillaGenerator))
                 {
+                    yield return new CodeInstruction(OpCodes.Call, explicitGenerator);
                     continue;
                 }
 
-                if (method.Name == "DrawNameInput" &&
-                    method.DeclaringType != null &&
-                    method.DeclaringType == typeof(GeneCreationDialogBase))
-                {
-                    return true;
-                }
+                yield return instruction;
             }
+        }
 
-            return false;
+        public static string GenerateExplicitXenotypeNameFromGenes(List<GeneDef> genes)
+        {
+            return GenerateUniqueXenotypeNameFromGenes(genes);
         }
 
         private static bool TryGetCurrentDialogXenotypeName(out string currentName)

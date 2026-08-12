@@ -11,8 +11,9 @@ namespace XenoPreview
             : base(
                 content,
                 "coolnether123.XenoPreview",
-                new SemanticVersion(1, 0, 0),
-                XenoPreviewSettingsRegistry.Definitions)
+                new SemanticVersion(1, 1, 0),
+                XenoPreviewSettingsRegistry.Schema.Definitions,
+                SpineCapability.SettingsSchema)
         {
         }
 

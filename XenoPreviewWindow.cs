@@ -203,10 +203,10 @@ namespace XenoPreview
             }
 
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSettingsGroup(
                 inRect,
-                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId),
-                priority: -100))
+                XenoPreviewSettingsRegistry.HeaderId,
+                priority: -100) == true)
             {
                 return;
             }
@@ -278,11 +278,10 @@ namespace XenoPreview
                 BUTTON_HEIGHT
             );
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSetting(
                 showButtonRect,
-                ContextualSettingsTarget.Exact(
-                    XenoPreviewSettingsRegistry.StartMinimizedId,
-                    XenoPreviewSettingsRegistry.HeaderId)))
+                XenoPreviewSettingsRegistry.StartMinimizedId,
+                XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -366,19 +365,6 @@ namespace XenoPreview
         #endregion
 
         #region Drawing helpers
-#if XENOPREVIEW_USE_SPINE
-        private static bool BindSettings(
-            Rect visibleRect,
-            ContextualSettingsTarget target,
-            int priority = 0)
-        {
-            return XenoPreviewMod.ContextualSettings?.Bind(
-                visibleRect,
-                target,
-                ContextualSettingsBindingOptions.HintOnly(priority)) == true;
-        }
-#endif
-
         private void DrawLayout(Rect inRect, List<GeneDef> activeGenes)
         {
             const float labelH = 20f;
@@ -391,11 +377,10 @@ namespace XenoPreview
             // Hide button in top left corner
             Rect hideButton = new Rect(5f, currentY, BUTTON_WIDTH, BUTTON_HEIGHT);
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSetting(
                 hideButton,
-                ContextualSettingsTarget.Exact(
-                    XenoPreviewSettingsRegistry.StartMinimizedId,
-                    XenoPreviewSettingsRegistry.HeaderId)))
+                XenoPreviewSettingsRegistry.StartMinimizedId,
+                XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -437,16 +422,14 @@ namespace XenoPreview
             );
 
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
-                femRotateRect,
-                ContextualSettingsTarget.Exact(
+            if (XenoPreviewMod.ContextualSettings?.BindSetting(
+                    femRotateRect,
                     XenoPreviewSettingsRegistry.DefaultRotationId,
-                    XenoPreviewSettingsRegistry.HeaderId)) ||
-                BindSettings(
+                    XenoPreviewSettingsRegistry.HeaderId) == true ||
+                XenoPreviewMod.ContextualSettings?.BindSetting(
                     maleRotateRect,
-                    ContextualSettingsTarget.Exact(
-                        XenoPreviewSettingsRegistry.DefaultRotationId,
-                        XenoPreviewSettingsRegistry.HeaderId)))
+                    XenoPreviewSettingsRegistry.DefaultRotationId,
+                    XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -467,9 +450,9 @@ namespace XenoPreview
             // Reroll button
             Rect reroll = new Rect((inRect.width - 90f) / 2f, femLabel.yMax + gap, 90f, buttonH);
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSettingsGroup(
                 reroll,
-                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)))
+                XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -488,12 +471,12 @@ namespace XenoPreview
             Rect femLock = new Rect(femLabel.x, currentY, femLabel.width, buttonH);
             Rect maleLock = new Rect(maleLabel.x, currentY, maleLabel.width, buttonH);
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
-                femLock,
-                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)) ||
-                BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSettingsGroup(
+                    femLock,
+                    XenoPreviewSettingsRegistry.HeaderId) == true ||
+                XenoPreviewMod.ContextualSettings?.BindSettingsGroup(
                     maleLock,
-                    ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)))
+                    XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -529,16 +512,14 @@ namespace XenoPreview
                 Rect maleTattoos = new Rect(maleClothes.x, currentY, maleClothes.width, buttonH);
 
 #if XENOPREVIEW_USE_SPINE
-                if (BindSettings(
-                    femTattoos,
-                    ContextualSettingsTarget.Exact(
+                if (XenoPreviewMod.ContextualSettings?.BindSetting(
+                        femTattoos,
                         XenoPreviewSettingsRegistry.FemaleTattoosId,
-                        XenoPreviewSettingsRegistry.HeaderId)) ||
-                    BindSettings(
+                        XenoPreviewSettingsRegistry.HeaderId) == true ||
+                    XenoPreviewMod.ContextualSettings?.BindSetting(
                         maleTattoos,
-                        ContextualSettingsTarget.Exact(
-                            XenoPreviewSettingsRegistry.MaleTattoosId,
-                            XenoPreviewSettingsRegistry.HeaderId)))
+                        XenoPreviewSettingsRegistry.MaleTattoosId,
+                        XenoPreviewSettingsRegistry.HeaderId) == true)
                 {
                     return;
                 }
@@ -617,16 +598,14 @@ namespace XenoPreview
         private void DoClothesButtons(Rect femClothes, Rect maleClothes)
         {
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
-                femClothes,
-                ContextualSettingsTarget.Exact(
+            if (XenoPreviewMod.ContextualSettings?.BindSetting(
+                    femClothes,
                     XenoPreviewSettingsRegistry.FemaleClothesId,
-                    XenoPreviewSettingsRegistry.HeaderId)) ||
-                BindSettings(
+                    XenoPreviewSettingsRegistry.HeaderId) == true ||
+                XenoPreviewMod.ContextualSettings?.BindSetting(
                     maleClothes,
-                    ContextualSettingsTarget.Exact(
-                        XenoPreviewSettingsRegistry.MaleClothesId,
-                        XenoPreviewSettingsRegistry.HeaderId)))
+                    XenoPreviewSettingsRegistry.MaleClothesId,
+                    XenoPreviewSettingsRegistry.HeaderId) == true)
             {
                 return;
             }
@@ -729,12 +708,11 @@ namespace XenoPreview
         private void DrawPawnPortrait(Pawn pawn, Rect rect, Rot4 rotation)
         {
 #if XENOPREVIEW_USE_SPINE
-            if (BindSettings(
+            if (XenoPreviewMod.ContextualSettings?.BindSetting(
                 rect,
-                ContextualSettingsTarget.Exact(
-                    XenoPreviewSettingsRegistry.DefaultRotationId,
-                    XenoPreviewSettingsRegistry.HeaderId),
-                priority: 10))
+                XenoPreviewSettingsRegistry.DefaultRotationId,
+                XenoPreviewSettingsRegistry.HeaderId,
+                priority: 10) == true)
             {
                 return;
             }

@@ -1,5 +1,4 @@
 #if XENOPREVIEW_USE_SPINE
-using Spine.Api;
 using Verse;
 
 namespace XenoPreview
@@ -39,9 +38,7 @@ namespace XenoPreview
 
         public override void ExposeData()
         {
-            SpineApi.Settings.Scribe(
-                this,
-                XenoPreviewSettingsRegistry.Definitions);
+            XenoPreviewSettingsRegistry.Schema.Scribe(this);
             Scribe_Values.Look(ref WindowPositionX, "windowPositionX", 0f);
             Scribe_Values.Look(ref WindowPositionY, "windowPositionY", 0f);
             Scribe_Values.Look(

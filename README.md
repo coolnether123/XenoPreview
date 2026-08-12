@@ -12,7 +12,7 @@ This mod is fully safe to add or remove from your saves at any point without any
 
 ## Latest Release
 
-Version 0.0.1 adds optional Spine integration with a persistent settings page and full Alt-click settings navigation for the preview window, pawns, and controls. Spine remains optional; the legacy payload is loaded when Spine is unavailable.
+Version 1.5.1 adds optional Spine integration with a persistent settings page and full Alt-click settings navigation for the preview window, pawns, and controls. Spine remains optional; the legacy payload is loaded when Spine is unavailable.
 
 ## Known Issues
 

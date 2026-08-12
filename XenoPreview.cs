@@ -243,6 +243,19 @@ namespace XenoPreview
         // Helper to ensure the preview window is open and correctly configured
         private static void EnsurePreviewWindowOpen(Window dialogInstance)
         {
+#if XENOPREVIEW_USE_SPINE
+            XenoPreviewSettings settings = XenoPreviewMod.Settings;
+            if (settings != null && !settings.EnablePreview)
+            {
+                if (XenoPreview.PreviewWindowInstance != null &&
+                    XenoPreview.PreviewWindowInstance.IsOpen)
+                {
+                    XenoPreview.PreviewWindowInstance.Close(false);
+                }
+
+                return;
+            }
+#endif
             if (XenoPreview.PreviewWindowInstance == null || !XenoPreview.PreviewWindowInstance.IsOpen)
             {
                 XenoPreview.PreviewWindowInstance = new XenoPreviewWindow();

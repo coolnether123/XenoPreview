@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<loadFolders>
+  <v1.6>
+    <li IfModNotActive="CoolNether123.Spine">1.6</li>
+    <li IfModActive="CoolNether123.Spine">1.6/ExternalSpine</li>
+  </v1.6>
+  <v1.5>
+    <li IfModNotActive="CoolNether123.Spine">1.5</li>
+    <li IfModActive="CoolNether123.Spine">1.5/ExternalSpine</li>
+  </v1.5>
+  <v1.4>
+    <li IfModNotActive="CoolNether123.Spine">1.4</li>
+    <li IfModActive="CoolNether123.Spine">1.4/ExternalSpine</li>
+  </v1.4>
+</loadFolders>

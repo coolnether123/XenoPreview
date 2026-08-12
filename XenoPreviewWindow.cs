@@ -6,6 +6,9 @@ using System.Diagnostics;
 using System.Linq;
 using UnityEngine;
 using Verse;
+#if XENOPREVIEW_USE_SPINE
+using Spine.UI.ContextualSettings;
+#endif
 
 namespace XenoPreview
 {
@@ -42,7 +45,8 @@ namespace XenoPreview
         private static Vector2 storedPosition = Vector2.zero; // Used to store the last position of the window
 
         private static bool isMinimized = false;
-        private static Vector2 WindowSize
+        private float previewScale = 1f;
+        private Vector2 WindowSize
         {
             get
             {
@@ -52,7 +56,7 @@ namespace XenoPreview
                 {
                     height -= (BUTTON_HEIGHT + UI_GAP); // BUTTON_HEIGHT = 30f, UI_GAP = 5f
                 }
-                return new Vector2(320f, height);
+                return new Vector2(320f * previewScale, height * previewScale);
             }
         }
 
@@ -65,7 +69,9 @@ namespace XenoPreview
         private const float BUTTON_WIDTH = 120f;
         private const float BUTTON_HEIGHT = 30f;
         private const float PORTRAIT_HEIGHT = 260f; // Fixed height for pawn portraits
-        private static readonly Vector2 MinimizedSize = new Vector2(180f, 60f); // Button + padding
+        private Vector2 MinimizedSize => new Vector2(
+            180f * previewScale,
+            60f * previewScale); // Button + padding
 
         // UI Layout Constants
         private const float LABEL_HEIGHT = 20f;
@@ -90,6 +96,51 @@ namespace XenoPreview
             layer = WindowLayer.Super;
             soundAppear = soundClose = null;
             forcePause = true;
+#if XENOPREVIEW_USE_SPINE
+            XenoPreviewSettings settings = XenoPreviewMod.Settings;
+            if (settings != null)
+            {
+                isMinimized = settings.StartMinimized;
+                previewScale = settings.PreviewSize == XenoPreviewSize.Compact
+                    ? 0.85f
+                    : settings.PreviewSize == XenoPreviewSize.Large
+                        ? 1.25f
+                        : 1f;
+
+                if (settings.RememberWindowPosition &&
+                    settings.HasSavedWindowPosition)
+                {
+                    storedPosition = new Vector2(
+                        settings.WindowPositionX,
+                        settings.WindowPositionY);
+                }
+                else
+                {
+                    storedPosition = Vector2.zero;
+                }
+
+                Rot4 defaultRotation = Rot4.South;
+                switch (settings.DefaultRotation)
+                {
+                    case XenoPreviewRotation.East:
+                        defaultRotation = Rot4.East;
+                        break;
+                    case XenoPreviewRotation.North:
+                        defaultRotation = Rot4.North;
+                        break;
+                    case XenoPreviewRotation.West:
+                        defaultRotation = Rot4.West;
+                        break;
+                }
+
+                femaleRotation = defaultRotation;
+                maleRotation = defaultRotation;
+                femaleShowClothes = settings.FemaleShowClothes;
+                maleShowClothes = settings.MaleShowClothes;
+                femaleShowTattoos = settings.FemaleShowTattoos;
+                maleShowTattoos = settings.MaleShowTattoos;
+            }
+#endif
         }
         #endregion
 
@@ -151,39 +202,70 @@ namespace XenoPreview
                 return;
             }
 
-            if (isMinimized)
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                inRect,
+                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId),
+                priority: -100))
             {
-                DrawMinimizedWindow(inRect);
                 return;
             }
+#endif
 
-            int count;
-            var currentGenes = TryGetCurrentGenes(out count);
-
-            if (count != lastGeneCount)
+            Matrix4x4 originalGuiMatrix = GUI.matrix;
+#if XENOPREVIEW_USE_SPINE
+            if (previewScale != 1f)
             {
-                if (femaleLocked && femalePawn != null)
-                    UpdatePreviewPawnGenes(femalePawn, currentGenes);
-                else
-                    needsPawnUpdate = true;
-
-                if (maleLocked && malePawn != null)
-                    UpdatePreviewPawnGenes(malePawn, currentGenes);
-                else
-                    needsPawnUpdate = true;
-
-                pawnGenerationFailedForCurrentGenes = false;
-                hasLoggedPawnGenerationFailure = false;
-                lastGeneCount = count;
+                GUI.matrix = originalGuiMatrix * Matrix4x4.Scale(
+                    new Vector3(previewScale, previewScale, 1f));
+                inRect = new Rect(
+                    0f,
+                    0f,
+                    inRect.width / previewScale,
+                    inRect.height / previewScale);
             }
+#endif
 
-            if (needsPawnUpdate && !pawnGenerationFailedForCurrentGenes)
+            try
             {
-                GenerateOrRefreshPawns(currentGenes);
-                needsPawnUpdate = false;
-            }
+                if (isMinimized)
+                {
+                    DrawMinimizedWindow(inRect);
+                    return;
+                }
 
-            DrawLayout(inRect, currentGenes);
+                int count;
+                var currentGenes = TryGetCurrentGenes(out count);
+
+                if (count != lastGeneCount)
+                {
+                    if (femaleLocked && femalePawn != null)
+                        UpdatePreviewPawnGenes(femalePawn, currentGenes);
+                    else
+                        needsPawnUpdate = true;
+
+                    if (maleLocked && malePawn != null)
+                        UpdatePreviewPawnGenes(malePawn, currentGenes);
+                    else
+                        needsPawnUpdate = true;
+
+                    pawnGenerationFailedForCurrentGenes = false;
+                    hasLoggedPawnGenerationFailure = false;
+                    lastGeneCount = count;
+                }
+
+                if (needsPawnUpdate && !pawnGenerationFailedForCurrentGenes)
+                {
+                    GenerateOrRefreshPawns(currentGenes);
+                    needsPawnUpdate = false;
+                }
+
+                DrawLayout(inRect, currentGenes);
+            }
+            finally
+            {
+                GUI.matrix = originalGuiMatrix;
+            }
         }
 
         private void DrawMinimizedWindow(Rect inRect)
@@ -195,6 +277,16 @@ namespace XenoPreview
                 BUTTON_WIDTH,
                 BUTTON_HEIGHT
             );
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                showButtonRect,
+                ContextualSettingsTarget.Exact(
+                    XenoPreviewSettingsRegistry.StartMinimizedId,
+                    XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
 
             GUI.color = new Color(0.3f, 0.5f, 0.7f, 0.9f);
             GUI.DrawTexture(showButtonRect, BaseContent.WhiteTex);
@@ -249,10 +341,44 @@ namespace XenoPreview
                 storedPosition = windowRect.position;
             }
 
+#if XENOPREVIEW_USE_SPINE
+            XenoPreviewSettings settings = XenoPreviewMod.Settings;
+            if (settings != null)
+            {
+                if (settings.RememberWindowPosition && windowRect.width > 0f)
+                {
+                    settings.WindowPositionX = windowRect.x;
+                    settings.WindowPositionY = windowRect.y;
+                    settings.HasSavedWindowPosition = true;
+                }
+                else if (!settings.RememberWindowPosition)
+                {
+                    settings.WindowPositionX = 0f;
+                    settings.WindowPositionY = 0f;
+                    settings.HasSavedWindowPosition = false;
+                }
+
+                settings.Write();
+            }
+#endif
+
         }
         #endregion
 
         #region Drawing helpers
+#if XENOPREVIEW_USE_SPINE
+        private static bool BindSettings(
+            Rect visibleRect,
+            ContextualSettingsTarget target,
+            int priority = 0)
+        {
+            return XenoPreviewMod.ContextualSettings?.Bind(
+                visibleRect,
+                target,
+                ContextualSettingsBindingOptions.HintOnly(priority)) == true;
+        }
+#endif
+
         private void DrawLayout(Rect inRect, List<GeneDef> activeGenes)
         {
             const float labelH = 20f;
@@ -264,6 +390,16 @@ namespace XenoPreview
 
             // Hide button in top left corner
             Rect hideButton = new Rect(5f, currentY, BUTTON_WIDTH, BUTTON_HEIGHT);
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                hideButton,
+                ContextualSettingsTarget.Exact(
+                    XenoPreviewSettingsRegistry.StartMinimizedId,
+                    XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
             if (Widgets.ButtonText(hideButton, "Hide Preview"))
             {
                 isMinimized = true;
@@ -300,6 +436,21 @@ namespace XenoPreview
                 buttonH
             );
 
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                femRotateRect,
+                ContextualSettingsTarget.Exact(
+                    XenoPreviewSettingsRegistry.DefaultRotationId,
+                    XenoPreviewSettingsRegistry.HeaderId)) ||
+                BindSettings(
+                    maleRotateRect,
+                    ContextualSettingsTarget.Exact(
+                        XenoPreviewSettingsRegistry.DefaultRotationId,
+                        XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
             if (Widgets.ButtonText(femRotateRect, "↻"))
             {
                 femaleRotation = femaleRotation.Rotated(RotationDirection.Clockwise);
@@ -315,6 +466,14 @@ namespace XenoPreview
 
             // Reroll button
             Rect reroll = new Rect((inRect.width - 90f) / 2f, femLabel.yMax + gap, 90f, buttonH);
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                reroll,
+                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
             if (Widgets.ButtonText(reroll, "Reroll") && (!femaleLocked || !maleLocked))
                 GenerateOrRefreshPawns(activeGenes);
 
@@ -328,6 +487,17 @@ namespace XenoPreview
             // Lock buttons
             Rect femLock = new Rect(femLabel.x, currentY, femLabel.width, buttonH);
             Rect maleLock = new Rect(maleLabel.x, currentY, maleLabel.width, buttonH);
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                femLock,
+                ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)) ||
+                BindSettings(
+                    maleLock,
+                    ContextualSettingsTarget.Group(XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
 
             if (Widgets.ButtonText(femLock, femaleLocked ? "Locked" : "Unlocked"))
             {
@@ -358,6 +528,21 @@ namespace XenoPreview
                 Rect femTattoos = new Rect(femClothes.x, currentY, femClothes.width, buttonH);
                 Rect maleTattoos = new Rect(maleClothes.x, currentY, maleClothes.width, buttonH);
 
+#if XENOPREVIEW_USE_SPINE
+                if (BindSettings(
+                    femTattoos,
+                    ContextualSettingsTarget.Exact(
+                        XenoPreviewSettingsRegistry.FemaleTattoosId,
+                        XenoPreviewSettingsRegistry.HeaderId)) ||
+                    BindSettings(
+                        maleTattoos,
+                        ContextualSettingsTarget.Exact(
+                            XenoPreviewSettingsRegistry.MaleTattoosId,
+                            XenoPreviewSettingsRegistry.HeaderId)))
+                {
+                    return;
+                }
+#endif
                 if (Widgets.ButtonText(femTattoos, femaleShowTattoos ? "Hide Tattoos" : "Show Tattoos"))
                 {
                     femaleShowTattoos = !femaleShowTattoos;
@@ -387,7 +572,7 @@ namespace XenoPreview
                             originalTattoos.Remove(femalePawn);
                         }
                     }
-                    femalePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                    ResolvePawnGraphics(femalePawn); // for 1.4
                 }
 #endif
                     }
@@ -421,7 +606,7 @@ namespace XenoPreview
                             originalTattoos.Remove(malePawn);
                         }
                     }
-                    malePawn.Drawer.renderer.graphics.ResolveAllGraphics(); // for 1.4
+                    ResolvePawnGraphics(malePawn); // for 1.4
                 }
 #endif
                     }
@@ -431,6 +616,21 @@ namespace XenoPreview
 
         private void DoClothesButtons(Rect femClothes, Rect maleClothes)
         {
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                femClothes,
+                ContextualSettingsTarget.Exact(
+                    XenoPreviewSettingsRegistry.FemaleClothesId,
+                    XenoPreviewSettingsRegistry.HeaderId)) ||
+                BindSettings(
+                    maleClothes,
+                    ContextualSettingsTarget.Exact(
+                        XenoPreviewSettingsRegistry.MaleClothesId,
+                        XenoPreviewSettingsRegistry.HeaderId)))
+            {
+                return;
+            }
+#endif
             // Handle female pawn clothes button
             if (Widgets.ButtonText(femClothes, femaleShowClothes ? "Hide Clothes" : "Show Clothes"))
             {
@@ -459,7 +659,7 @@ namespace XenoPreview
                         originalApparel.Remove(femalePawn);
                     }
                 }
-                femalePawn.Drawer.renderer.graphics.ResolveAllGraphics();
+                ResolvePawnGraphics(femalePawn);
             }
 #endif
                 }
@@ -492,15 +692,53 @@ namespace XenoPreview
                         originalApparel.Remove(malePawn);
                     }
                 }
-                malePawn.Drawer.renderer.graphics.ResolveAllGraphics();
+                ResolvePawnGraphics(malePawn);
             }
 #endif
                 }
             }
         }
 
+#if V1_4
+        private static void ResolvePawnGraphics(Pawn pawn)
+        {
+            if (pawn?.Drawer?.renderer == null)
+            {
+                return;
+            }
+
+            try
+            {
+                Traverse graphics = Traverse.Create(pawn.Drawer.renderer).Field("graphics");
+                if (graphics.FieldExists())
+                {
+                    Traverse resolver = graphics.Method("ResolveAllGraphics");
+                    if (resolver.MethodExists())
+                    {
+                        resolver.GetValue();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[XenoPreview] Error refreshing 1.4 pawn graphics: " + ex.Message);
+            }
+        }
+#endif
+
         private void DrawPawnPortrait(Pawn pawn, Rect rect, Rot4 rotation)
         {
+#if XENOPREVIEW_USE_SPINE
+            if (BindSettings(
+                rect,
+                ContextualSettingsTarget.Exact(
+                    XenoPreviewSettingsRegistry.DefaultRotationId,
+                    XenoPreviewSettingsRegistry.HeaderId),
+                priority: 10))
+            {
+                return;
+            }
+#endif
             if (pawn == null)
             {
                 DrawPlaceholder(rect, "Add genes to see preview");

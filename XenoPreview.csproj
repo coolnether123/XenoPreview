@@ -64,7 +64,34 @@
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>false</SignAssembly>
+    <!--
+      Spine is an optional build-time integration. Leave this false for the
+      legacy payloads; enable it explicitly when building a payload alongside
+      the matching Spine assembly.
+    -->
+    <XenoPreviewUseSpine Condition="'$(XenoPreviewUseSpine)' == ''">false</XenoPreviewUseSpine>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(XenoPreviewUseSpine)' == 'true' and ('$(Configuration)' == '1.4' or '$(Configuration)' == '1.5' or '$(Configuration)' == '1.6')">
+    <DefineConstants>$(DefineConstants);XENOPREVIEW_USE_SPINE</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(XenoPreviewUseSpine)' == 'true' and '$(Configuration)' == '1.4'">
+    <OutputPath>1.4\ExternalSpine\Assemblies\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(XenoPreviewUseSpine)' == 'true' and '$(Configuration)' == '1.5'">
+    <OutputPath>1.5\ExternalSpine\Assemblies\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(XenoPreviewUseSpine)' == 'true' and '$(Configuration)' == '1.6'">
+    <OutputPath>1.6\ExternalSpine\Assemblies\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <XenoPreviewSpineConfigurationSupported Condition="'$(Configuration)' == '1.4' or '$(Configuration)' == '1.5' or '$(Configuration)' == '1.6'">true</XenoPreviewSpineConfigurationSupported>
+  </PropertyGroup>
+  <Target
+    Name="ValidateXenoPreviewSpineConfiguration"
+    BeforeTargets="PrepareForBuild"
+    Condition="'$(XenoPreviewUseSpine)' == 'true' and '$(XenoPreviewSpineConfigurationSupported)' != 'true'">
+    <Error Text="XenoPreviewUseSpine=true requires Configuration 1.4, 1.5, or 1.6." />
+  </Target>
   <ItemGroup>
     <Reference Include="System.Core" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -73,7 +100,16 @@
   <ItemGroup>
     <Compile Include="XenoPreviewWindow.cs" />
     <Compile Include="XenoPreview.cs" />
+    <Compile Include="XenoPreviewMod.cs" />
+    <Compile Include="XenoPreviewSettings.cs" />
+    <Compile Include="XenoPreviewSettingsRegistry.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(XenoPreviewUseSpine)' == 'true' and ('$(Configuration)' == '1.4' or '$(Configuration)' == '1.5' or '$(Configuration)' == '1.6')">
+    <Reference Include="Spine">
+      <HintPath>..\Spine\$(Configuration)\Assemblies\Spine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Krafs.Publicizer">

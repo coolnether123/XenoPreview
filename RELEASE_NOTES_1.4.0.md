@@ -1,13 +1,15 @@
 # XenoPreview 1.4.0
 
-## Highlights
+## Changes
 
 - Fixed xenotype name randomization returning `PreviewXenotype`.
 - Added a standalone xenotype name generator instead of relying on RimWorld's broken vanilla name-generation path.
-- Improved generated names for larger gene sets with richer gene-aware patterns such as clades, lineages, strains, genomes, and variants.
+- Added more gene-aware name patterns for large gene sets, including clades,
+  lineages, strains, genomes, and variants.
 - Gene selection changes no longer randomize the xenotype name. Names now change only when using the Randomize button or name options menu.
 - Reduced repeated preview pawn-generation error spam when RimWorld cannot generate a preview pawn for the current gene set.
-- Prepared a clean release package without source files, project files, debug symbols, or bundled Harmony.
+- Removed source files, project files, debug symbols, and bundled Harmony from
+  the release package.
 
 ## Compatibility
 

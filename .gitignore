@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# XenoPreview developer fixture payloads are built into isolated evidence roots.
+Developer/XenoPreview.TestFixture/1.4/Assemblies/*.dll
+Developer/XenoPreview.TestFixture/1.4/Assemblies/*.pdb
+Developer/XenoPreview.TestFixture/1.5/Assemblies/*.dll
+Developer/XenoPreview.TestFixture/1.5/Assemblies/*.pdb
+Developer/XenoPreview.TestFixture/1.6/Assemblies/*.dll
+Developer/XenoPreview.TestFixture/1.6/Assemblies/*.pdb

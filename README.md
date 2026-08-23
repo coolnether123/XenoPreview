@@ -6,45 +6,54 @@ Portions of the materials used to create this content/mod are trademarks and/or 
 
 Supports RimWorld 1.6, 1.5, and 1.4.
 
-XenoPreview adds a dynamic live preview window to the xenotype creation screen. As you select genes, instantly see exactly how your custom xenotypes will appear in-game. Each gender has an individual lock feature, allowing separate rerolls and rotation to help you achieve the perfect appearance. You can also toggle apparel and tattoos (tattoos enabled when Ideology DLC is active) for a clearer view, and minimize the preview window when not needed.
+XenoPreview adds a live preview window to the xenotype creation screen. The
+female and male previews update as you select genes. You can lock either pawn,
+reroll or rotate them separately, hide their clothes, and minimize the window.
+With Ideology active, you can also show or hide tattoos.
 
-This mod is fully safe to add or remove from your saves at any point without any risk of issues.
+The mod stores no data in your saves, so you can add or remove it during a
+playthrough.
 
-## Latest Release
+## Latest release
 
-Version 1.5.1 adds optional Spine integration with a persistent settings page and full Alt-click settings navigation for the preview window, pawns, and controls. Spine remains optional; the legacy payload is loaded when Spine is unavailable.
+Version 1.5.1 adds optional SpineLib integration, saved settings, and Alt-click
+navigation from the preview window to the matching settings. XenoPreview loads
+its standalone version when SpineLib is not installed.
 
-## Known Issues
+## Known issues
 
-None at this time.
+No known issues.
 
-## Original Idea Credit
+## Original idea credit
 
-This mod's concept was originally suggested on the RimWorld Discord:
-[RimWorld Discord Channel](https://discord.com/channels/214523379766525963/1372022155193225226)
+The original idea came from this
+[RimWorld Discord discussion](https://discord.com/channels/214523379766525963/1372022155193225226).
 
-## DLC and Mod Compatibility
+## DLC and mod compatibility
 
-XenoPreview is compatible with all official RimWorld DLC and most mods that interact with the xenotype creation interface.
+Biotech is required. The other official expansions are supported but optional.
 
 ### Official DLC
 
-[Biotech](https://rimworldgame.com/biotech/) - Required
-[Royalty](https://rimworldgame.com/royalty/) - Supported
-[Ideology](https://rimworldgame.com/ideology/) - Enables tattoo preview functionality
-[Anomaly](https://rimworldgame.com/anomaly/) - Supported
-Odyssey - Supported
+- [Biotech](https://rimworldgame.com/biotech/): required
+- [Royalty](https://rimworldgame.com/royalty/): supported
+- [Ideology](https://rimworldgame.com/ideology/): enables tattoo previews
+- [Anomaly](https://rimworldgame.com/anomaly/): supported
+- Odyssey: supported
 
 ### Mods
 
-[Xenotype and Ideology Buttons TitleScreen](https://steamcommunity.com/sharedfiles/filedetails/?id=3243233522) - Native - Thank you _Sumarbrander!
-Generally compatible unless explicitly stated otherwise. Please report any compatibility issues directly on the mod page.
+[Xenotype and Ideology Buttons TitleScreen](https://steamcommunity.com/sharedfiles/filedetails/?id=3243233522)
+has native compatibility, contributed by _Sumarbrander.
 
-## Links and Resources
+Other mods are expected to work unless they replace the same xenotype-creation
+UI. Report compatibility problems on the mod page.
+
+## Links and resources
 
 [GitHub Repository](https://github.com/coolnether123/XenoPreview)
 
-## Support the Developer
+## Support the developer
 
-If you enjoy my mods and want to support my work, or help me acquire additional DLC for better mod compatibility, consider leaving a small tip here:
-[Buy Me a Coffee](https://buymeacoffee.com/coolnether123)
+If you want to support development or help cover DLC used for compatibility
+testing, you can [buy me a coffee](https://buymeacoffee.com/coolnether123).

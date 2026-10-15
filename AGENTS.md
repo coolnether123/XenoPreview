@@ -1,6 +1,6 @@
 # XenoPreview Agent Guide
 
-Also follow `A:\Dev\RimWorld\AGENTS.md`.
+Also follow `H:\Dev\RimWorld\AGENTS.md`.
 
 `About\About.xml`, the project file, and release notes define
 supported versions and DLC requirements. Preserve version-specific payloads;
